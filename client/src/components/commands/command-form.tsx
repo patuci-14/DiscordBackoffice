@@ -134,12 +134,22 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       return;
     }
     
+    // Validate webhook URL if provided
+    if (webhookUrl && !webhookUrl.trim().match(/^https?:\/\/.+/i)) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Webhook URL must be a valid HTTP or HTTPS URL.',
+      });
+      return;
+    }
+    
     const commandData: InsertCommand = {
       name,
       type,
       description,
       response,
-      webhookUrl,
+      webhookUrl: webhookUrl.trim() || null,
       requiredPermission,
       cooldown,
       enabledForAllServers,
