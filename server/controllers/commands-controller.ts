@@ -8,6 +8,8 @@ const commandValidator = z.object({
   name: z.string().min(1).max(32),
   type: z.enum(['text', 'slash', 'embed']),
   response: z.string().min(1),
+  description: z.string().nullable().optional(),
+  webhookUrl: z.string().nullable().optional(),
   requiredPermission: z.enum(['everyone', 'moderator', 'admin', 'server-owner']),
   cooldown: z.number().int().min(0),
   enabledForAllServers: z.boolean(),
@@ -161,7 +163,7 @@ export const updateCommand = async (req: Request, res: Response) => {
     
     // Validate the update data
     const { 
-      name, type, response, requiredPermission, 
+      name, type, response, description, webhookUrl, requiredPermission, 
       cooldown, enabledForAllServers, deleteUserMessage, 
       logUsage, active 
     } = req.body;
@@ -171,6 +173,8 @@ export const updateCommand = async (req: Request, res: Response) => {
     if (name !== undefined) updates.name = name;
     if (type !== undefined) updates.type = type;
     if (response !== undefined) updates.response = response;
+    if (description !== undefined) updates.description = description;
+    if (webhookUrl !== undefined) updates.webhookUrl = webhookUrl;
     if (requiredPermission !== undefined) updates.requiredPermission = requiredPermission;
     if (cooldown !== undefined) updates.cooldown = cooldown;
     if (enabledForAllServers !== undefined) updates.enabledForAllServers = enabledForAllServers;
