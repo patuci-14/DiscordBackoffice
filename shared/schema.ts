@@ -65,6 +65,7 @@ export const commands = pgTable("commands", {
   name: text("name").notNull(),
   type: text("type").notNull().default("text"), // text, slash, embed
   response: text("response").notNull(),
+  webhookUrl: text("webhook_url"), // URL to be called when command is triggered
   requiredPermission: text("required_permission").default("everyone"),
   cooldown: integer("cooldown").default(0),
   enabledForAllServers: boolean("enabled_for_all_servers").default(true),
@@ -78,6 +79,7 @@ export const insertCommandSchema = createInsertSchema(commands).pick({
   name: true,
   type: true,
   response: true,
+  webhookUrl: true,
   requiredPermission: true,
   cooldown: true,
   enabledForAllServers: true,

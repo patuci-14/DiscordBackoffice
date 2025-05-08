@@ -36,6 +36,7 @@ const Commands: React.FC = () => {
     name: '',
     type: 'text',
     response: '',
+    webhookUrl: '',
     requiredPermission: 'everyone',
     cooldown: 3,
     enabledForAllServers: true,

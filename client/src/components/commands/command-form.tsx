@@ -24,6 +24,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   const [name, setName] = useState('');
   const [type, setType] = useState<'text' | 'slash' | 'embed'>('text');
   const [response, setResponse] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
   const [requiredPermission, setRequiredPermission] = useState<'everyone' | 'moderator' | 'admin' | 'server-owner'>('everyone');
   const [cooldown, setCooldown] = useState(3);
   const [enabledForAllServers, setEnabledForAllServers] = useState(true);
@@ -37,6 +38,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       setName(command.name || '');
       setType(command.type as 'text' | 'slash' | 'embed');
       setResponse(command.response || '');
+      setWebhookUrl(command.webhookUrl || '');
       setRequiredPermission(command.requiredPermission as 'everyone' | 'moderator' | 'admin' | 'server-owner');
       setCooldown(command.cooldown || 3);
       setEnabledForAllServers(command.enabledForAllServers || true);

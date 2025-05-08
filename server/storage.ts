@@ -266,7 +266,8 @@ export class MemStorage implements IStorage {
     const newCommand: Command = { 
       ...command, 
       id,
-      usageCount: 0
+      usageCount: 0,
+      webhookUrl: command.webhookUrl || null
     };
     this.commands.set(id, newCommand);
     return newCommand;
