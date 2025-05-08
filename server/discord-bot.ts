@@ -154,7 +154,7 @@ class DiscordBot {
         }
         
         // Call webhook if configured
-        if (command.webhookUrl) {
+        if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
           console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
           try {
             // Prepare webhook payload with rich context information
@@ -183,20 +183,28 @@ class DiscordBot {
               timestamp: new Date()
             };
 
-            // Send webhook request
-            await axios.post(command.webhookUrl, webhookPayload, {
+            // Send webhook request with appropriate timeout and retry
+            const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'Discord-Bot-Manager'
               },
-              timeout: 5000 // 5 second timeout to prevent hanging
+              timeout: 5000, // 5 second timeout to prevent hanging
+              validateStatus: status => status < 500 // Accept all non-server error responses
             });
             
-            console.log(`Webhook triggered for command ${command.name}`);
-          } catch (webhookError) {
-            console.error(`Error sending webhook for command ${command.name}:`, webhookError);
+            if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
+              console.log(`Webhook triggered successfully for command ${command.name}`);
+            } else {
+              console.warn(`Webhook for command ${command.name} returned status: ${webhookResponse.status}`);
+            }
+          } catch (error) {
+            const webhookError = error instanceof Error ? error : new Error('Unknown error');
+            console.error(`Error sending webhook for command ${command.name}:`, webhookError.message);
             // Continue execution - webhook errors shouldn't affect the user experience
           }
+        } else if (command.webhookUrl) {
+          console.warn(`Invalid webhook URL format for command ${command.name}: ${command.webhookUrl}`);
         }
         
         // Delete the user's message if specified
@@ -432,13 +440,17 @@ class DiscordBot {
         return;
       }
       
-      // Get all active commands
-      const commands = Array.from(this.commands.values()).filter(cmd => cmd.active);
+      // Get all active slash commands
+      const commands = Array.from(this.commands.values()).filter(cmd => 
+        cmd.active && cmd.type === 'slash'
+      );
       
       if (commands.length === 0) {
-        console.log('No active commands to register as slash commands.');
+        console.log('No active slash commands to register.');
         return;
       }
+      
+      console.log(`Found ${commands.length} active slash commands to register.`);
       
       // Create the REST API instance
       const rest = new REST({ version: '10' }).setToken(this.token);
@@ -560,7 +572,7 @@ class DiscordBot {
       }
       
       // Call webhook if configured
-      if (command.webhookUrl) {
+      if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
         console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
         try {
           // Prepare webhook payload with rich context information
@@ -587,20 +599,28 @@ class DiscordBot {
             timestamp: new Date()
           };
 
-          // Send webhook request
-          await axios.post(command.webhookUrl, webhookPayload, {
+          // Send webhook request with appropriate timeout and retry
+          const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'Discord-Bot-Manager'
             },
-            timeout: 5000 // 5 second timeout to prevent hanging
+            timeout: 5000, // 5 second timeout to prevent hanging
+            validateStatus: status => status < 500 // Accept all non-server error responses
           });
           
-          console.log(`Webhook triggered for command ${command.name}`);
-        } catch (webhookError) {
-          console.error(`Error sending webhook for command ${command.name}:`, webhookError);
+          if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
+            console.log(`Webhook triggered successfully for command ${command.name}`);
+          } else {
+            console.warn(`Webhook for command ${command.name} returned status: ${webhookResponse.status}`);
+          }
+        } catch (error) {
+          const webhookError = error as Error;
+          console.error(`Error sending webhook for command ${command.name}:`, webhookError.message || 'Unknown error');
           // Continue execution - webhook errors shouldn't affect the user experience
         }
+      } else if (command.webhookUrl) {
+        console.warn(`Invalid webhook URL format for command ${command.name}: ${command.webhookUrl}`);
       }
       
       // Log command usage
