@@ -1,4 +1,6 @@
-import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder, 
+  ApplicationCommandType, ApplicationCommandOptionType, REST, Routes, Interaction, 
+  ChatInputCommandInteraction } from 'discord.js';
 import axios from 'axios';
 import { storage } from './storage';
 import { BotConfig, Server, InsertServer, Command, InsertCommandLog } from '@shared/schema';
@@ -53,6 +55,16 @@ class DiscordBot {
       
       // Load commands
       await this.loadCommands();
+      
+      // Register slash commands
+      await this.registerSlashCommands();
+    });
+    
+    // Handle slash command interactions
+    this.client.on(Events.InteractionCreate, async (interaction) => {
+      if (!interaction.isChatInputCommand()) return;
+      
+      await this.handleSlashCommand(interaction);
     });
     
     this.client.on(Events.MessageCreate, async (message) => {
@@ -127,6 +139,9 @@ class DiscordBot {
           .replace('{server}', message.guild.name)
           .replace('{ping}', this.client.ws.ping.toString());
         
+        // Log command data for debugging
+        console.log(`Command executed: ${command.name}, type: ${command.type}, webhookUrl: ${command.webhookUrl || 'none'}`);
+        
         // Send the response based on command type
         if (command.type === 'embed') {
           const embed = new EmbedBuilder()
@@ -140,6 +155,7 @@ class DiscordBot {
         
         // Call webhook if configured
         if (command.webhookUrl) {
+          console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
           try {
             // Prepare webhook payload with rich context information
             const webhookPayload = {
