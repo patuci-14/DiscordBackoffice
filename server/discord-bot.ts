@@ -464,8 +464,13 @@ class DiscordBot {
         };
         
         // Add options if defined
-        if (cmd.options && Object.keys(cmd.options).length > 0) {
-          commandData.options = cmd.options;
+        if (cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0) {
+          commandData.options = cmd.options.map(option => ({
+            name: option.name.toLowerCase(),
+            description: option.description || `Option for ${cmd.name}`,
+            type: this.getApplicationCommandOptionType(option.type),
+            required: !!option.required
+          }));
         }
         
         return commandData;
@@ -667,6 +672,22 @@ class DiscordBot {
         status: 'failed'
       });
     }
+  }
+  
+  /**
+   * Convert string option type to Discord.js ApplicationCommandOptionType
+   */
+  private getApplicationCommandOptionType(type: string): number {
+    const ApplicationCommandOptionType = {
+      'STRING': 3,
+      'INTEGER': 4,
+      'BOOLEAN': 5,
+      'USER': 6,
+      'CHANNEL': 7,
+      'ROLE': 8
+    };
+    
+    return ApplicationCommandOptionType[type as keyof typeof ApplicationCommandOptionType] || 3; // Default to STRING
   }
 }
 
