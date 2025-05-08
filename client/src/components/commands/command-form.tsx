@@ -11,6 +11,14 @@ import { createCommand, updateCommand, deleteCommand } from '@/lib/discord-api';
 import { queryClient } from '@/lib/queryClient';
 import { Command, InsertCommand } from '@shared/schema';
 
+// Define the structure for slash command options
+interface CommandOption {
+  name: string;
+  description: string;
+  type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE';
+  required: boolean;
+}
+
 interface CommandFormProps {
   command?: Command | InsertCommand;
   isEditing: boolean;
@@ -32,7 +40,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   const [deleteUserMessage, setDeleteUserMessage] = useState(false);
   const [logUsage, setLogUsage] = useState(true);
   const [active, setActive] = useState(true);
-  const [options, setOptions] = useState<any[]>([]);
+  const [options, setOptions] = useState<CommandOption[]>([]);
   const [showOptionsPanel, setShowOptionsPanel] = useState(false);
   
   // Initialize form with command data if provided
@@ -52,8 +60,8 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       
       // Set options if available
       if ('options' in command && command.options) {
-        setOptions(command.options as any[]);
-        if (command.options.length > 0) {
+        setOptions(command.options as CommandOption[]);
+        if (Array.isArray(command.options) && command.options.length > 0) {
           setShowOptionsPanel(true);
         }
       }
@@ -206,7 +214,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
     setOptions(newOptions);
   };
 
-  const updateOption = (index: number, field: string, value: any) => {
+  const updateOption = (index: number, field: keyof CommandOption, value: any) => {
     const newOptions = [...options];
     newOptions[index] = {
       ...newOptions[index],
