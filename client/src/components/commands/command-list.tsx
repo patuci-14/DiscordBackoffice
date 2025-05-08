@@ -103,6 +103,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Command</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Type</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Response</th>
+                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Webhook</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Permissions</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Usage</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Status</th>
@@ -148,6 +149,16 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm truncate max-w-[200px]">{command.response}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {command.webhookUrl ? (
+                        <span className="flex items-center">
+                          <span className="h-2 w-2 rounded-full bg-discord-green mr-1"></span>
+                          <span className="truncate max-w-[120px]" title={command.webhookUrl}>Configured</span>
+                        </span>
+                      ) : (
+                        <span className="text-discord-text-secondary">None</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm capitalize">{command.requiredPermission}</td>
                     <td className="px-4 py-3 text-sm">{command.usageCount || 0}</td>
                     <td className="px-4 py-3 text-sm">
@@ -169,7 +180,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-4 text-center text-discord-text-secondary">
+                  <td colSpan={8} className="px-4 py-4 text-center text-discord-text-secondary">
                     {searchTerm || typeFilter !== 'all'
                       ? 'No commands match your search or filter'
                       : 'No commands found. Create your first command to get started.'}
@@ -196,7 +207,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
               Previous
             </Button>
             <Button
-              variant={currentPage >= maxPage ? "outline" : "primary"}
+              variant={currentPage >= maxPage ? "outline" : "default"}
               disabled={currentPage >= maxPage}
               onClick={() => setCurrentPage(Math.min(maxPage, currentPage + 1))}
               className={`px-3 py-1 rounded text-sm ${currentPage < maxPage ? 'bg-discord-blurple' : 'bg-discord-bg-tertiary text-discord-text-secondary'}`}
