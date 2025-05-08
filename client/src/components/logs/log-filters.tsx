@@ -89,7 +89,7 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
                 <SelectValue placeholder="All Servers" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Servers</SelectItem>
+                <SelectItem value="all">All Servers</SelectItem>
                 {serversData?.servers?.map(server => (
                   <SelectItem key={server.id} value={server.serverId}>
                     {server.name}
@@ -106,7 +106,7 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
                 <SelectValue placeholder="All Commands" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Commands</SelectItem>
+                <SelectItem value="all">All Commands</SelectItem>
                 {commandsData?.commands?.map(cmd => (
                   <SelectItem key={cmd.id} value={cmd.name}>
                     {cmd.type === 'slash' ? '/' : '!'}{cmd.name}

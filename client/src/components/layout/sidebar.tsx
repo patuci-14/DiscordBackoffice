@@ -14,8 +14,27 @@ const Sidebar: React.FC<SidebarProps> = ({ botName = 'Discord Bot' }) => {
     window.location.href = '/login';
   };
 
+  // We need to fix the nested <a> tags issue with wouter
+  const NavItem = ({ to, icon, label }: { to: string; icon: string; label: string }) => {
+    const isActive = location === to;
+    
+    return (
+      <li>
+        <Link href={to}>
+          <div className={`cursor-pointer block w-full flex items-center px-4 py-2 ${
+            isActive 
+              ? 'bg-discord-bg-primary text-white' 
+              : 'text-discord-text-secondary hover:bg-discord-bg-primary hover:text-white'
+          } transition duration-150`}>
+            <i className={`${icon} w-5 mr-3`}></i> {label}
+          </div>
+        </Link>
+      </li>
+    );
+  };
+
   return (
-    <aside className="w-64 bg-discord-bg-secondary flex-shrink-0 hidden md:flex md:flex-col h-screen fixed">
+    <aside className="w-64 bg-discord-bg-secondary flex-shrink-0 h-screen overflow-y-auto">
       <div className="flex items-center p-4 border-b border-gray-700">
         <i className="fab fa-discord text-discord-blurple text-2xl mr-3"></i>
         <h1 className="font-bold text-lg">Bot Backoffice</h1>
@@ -33,61 +52,11 @@ const Sidebar: React.FC<SidebarProps> = ({ botName = 'Discord Bot' }) => {
       {/* Navigation Menu */}
       <nav className="py-4 flex-1 overflow-y-auto">
         <ul>
-          <li>
-            <Link href="/dashboard">
-              <a className={`block w-full flex items-center px-4 py-2 ${
-                location === '/dashboard' 
-                  ? 'bg-discord-bg-primary text-white' 
-                  : 'text-discord-text-secondary hover:bg-discord-bg-primary hover:text-white'
-              } transition duration-150`}>
-                <i className="fas fa-tachometer-alt w-5 mr-3"></i> Dashboard
-              </a>
-            </Link>
-          </li>
-          <li>
-            <Link href="/config">
-              <a className={`block w-full flex items-center px-4 py-2 ${
-                location === '/config' 
-                  ? 'bg-discord-bg-primary text-white' 
-                  : 'text-discord-text-secondary hover:bg-discord-bg-primary hover:text-white'
-              } transition duration-150`}>
-                <i className="fas fa-cogs w-5 mr-3"></i> Configuration
-              </a>
-            </Link>
-          </li>
-          <li>
-            <Link href="/commands">
-              <a className={`block w-full flex items-center px-4 py-2 ${
-                location === '/commands' 
-                  ? 'bg-discord-bg-primary text-white' 
-                  : 'text-discord-text-secondary hover:bg-discord-bg-primary hover:text-white'
-              } transition duration-150`}>
-                <i className="fas fa-terminal w-5 mr-3"></i> Commands
-              </a>
-            </Link>
-          </li>
-          <li>
-            <Link href="/logs">
-              <a className={`block w-full flex items-center px-4 py-2 ${
-                location === '/logs' 
-                  ? 'bg-discord-bg-primary text-white' 
-                  : 'text-discord-text-secondary hover:bg-discord-bg-primary hover:text-white'
-              } transition duration-150`}>
-                <i className="fas fa-list w-5 mr-3"></i> Logs
-              </a>
-            </Link>
-          </li>
-          <li>
-            <Link href="/plugins">
-              <a className={`block w-full flex items-center px-4 py-2 ${
-                location === '/plugins' 
-                  ? 'bg-discord-bg-primary text-white' 
-                  : 'text-discord-text-secondary hover:bg-discord-bg-primary hover:text-white'
-              } transition duration-150`}>
-                <i className="fas fa-puzzle-piece w-5 mr-3"></i> Plugins
-              </a>
-            </Link>
-          </li>
+          <NavItem to="/dashboard" icon="fas fa-tachometer-alt" label="Dashboard" />
+          <NavItem to="/config" icon="fas fa-cogs" label="Configuration" />
+          <NavItem to="/commands" icon="fas fa-terminal" label="Commands" />
+          <NavItem to="/logs" icon="fas fa-list" label="Logs" />
+          <NavItem to="/plugins" icon="fas fa-puzzle-piece" label="Plugins" />
         </ul>
       </nav>
       

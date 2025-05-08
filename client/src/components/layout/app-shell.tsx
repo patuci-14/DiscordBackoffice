@@ -24,7 +24,9 @@ const AppShell: React.FC<AppShellProps> = ({ children, title, actions }) => {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar (hidden on mobile) */}
-      <Sidebar botName={botInfo?.name} />
+      <div className="hidden md:block md:w-64 md:flex-shrink-0 md:fixed md:h-screen">
+        <Sidebar botName={botInfo?.name} />
+      </div>
       
       {/* Mobile Navigation Bar */}
       <div className="md:hidden w-full bg-discord-bg-secondary p-4 flex justify-between items-center border-b border-gray-700 fixed top-0 z-50">
@@ -43,11 +45,11 @@ const AppShell: React.FC<AppShellProps> = ({ children, title, actions }) => {
       )}
       
       {/* Main Content */}
-      <main className="flex-1 bg-discord-bg-primary overflow-auto md:ml-0 pt-16 md:pt-0">
+      <main className="flex-1 bg-discord-bg-primary overflow-auto w-full md:ml-64 pt-16 md:pt-0">
         <div className="p-4 md:p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">{title}</h1>
-            {actions && <div>{actions}</div>}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <h1 className="text-2xl font-bold mb-3 md:mb-0">{title}</h1>
+            {actions && <div className="w-full md:w-auto">{actions}</div>}
           </div>
           
           {children}

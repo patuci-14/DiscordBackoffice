@@ -10,8 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 const Logs: React.FC = () => {
   const { toast } = useToast();
   const [filterParams, setFilterParams] = useState({
-    server: '',
-    command: '',
+    server: 'all',
+    command: 'all',
     user: '',
     limit: 50,
     offset: 0
@@ -19,7 +19,11 @@ const Logs: React.FC = () => {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['/api/logs', filterParams],
-    queryFn: () => getLogs(filterParams),
+    queryFn: () => getLogs({
+      ...filterParams,
+      server: filterParams.server === 'all' ? '' : filterParams.server,
+      command: filterParams.command === 'all' ? '' : filterParams.command
+    }),
     retry: false,
   });
 
