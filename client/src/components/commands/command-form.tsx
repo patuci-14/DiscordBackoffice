@@ -436,7 +436,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                       <ToggleSwitch
                         checked={option.required}
                         onChange={(checked) => updateOption(index, 'required', checked)}
-                        label="Required parameter"
+                        label={<span>Required parameter <span className="text-xs text-discord-blurple">(affects the Discord command UI)</span></span>}
                       />
                     </div>
                   </div>

@@ -465,12 +465,24 @@ class DiscordBot {
         
         // Add options if defined
         if (cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0) {
-          commandData.options = cmd.options.map(option => ({
-            name: option.name.toLowerCase().replace(/\s+/g, '_'),
-            description: option.description || `Option for ${cmd.name}`,
-            type: this.getApplicationCommandOptionType(option.type),
-            required: option.required === true
-          }));
+          console.log(`Command "${cmd.name}" has ${cmd.options.length} options:`, cmd.options);
+          
+          commandData.options = cmd.options.map(option => {
+            // Ensure option name follows Discord requirements
+            const optionName = option.name.toLowerCase().replace(/\s+/g, '_');
+            
+            // Determine if option is required
+            const isRequired = option.required === true;
+            
+            console.log(`Processing option "${optionName}" (type: ${option.type}, required: ${isRequired})`);
+            
+            return {
+              name: optionName,
+              description: option.description || `Option for ${cmd.name}`,
+              type: this.getApplicationCommandOptionType(option.type),
+              required: isRequired
+            };
+          });
         }
         
         return commandData;
