@@ -64,6 +64,7 @@ export const commands = pgTable("commands", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   type: text("type").notNull().default("text"), // text, slash, embed
+  description: text("description"), // Used for slash command descriptions
   response: text("response").notNull(),
   webhookUrl: text("webhook_url"), // URL to be called when command is triggered
   requiredPermission: text("required_permission").default("everyone"),
@@ -78,6 +79,7 @@ export const commands = pgTable("commands", {
 export const insertCommandSchema = createInsertSchema(commands).pick({
   name: true,
   type: true,
+  description: true,
   response: true,
   webhookUrl: true,
   requiredPermission: true,

@@ -23,6 +23,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   // Form state
   const [name, setName] = useState('');
   const [type, setType] = useState<'text' | 'slash' | 'embed'>('text');
+  const [description, setDescription] = useState('');
   const [response, setResponse] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [requiredPermission, setRequiredPermission] = useState<'everyone' | 'moderator' | 'admin' | 'server-owner'>('everyone');

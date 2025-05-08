@@ -401,6 +401,7 @@ class DiscordBot {
   
   public async reloadCommands() {
     await this.loadCommands();
+    await this.registerSlashCommands();
   }
   
   public async updateStatus(status: string, activity?: string, activityType?: string) {
@@ -414,6 +415,229 @@ class DiscordBot {
     });
     
     await this.updateBotStatus();
+  }
+  
+  /**
+   * Register slash commands with Discord API
+   */
+  private async registerSlashCommands() {
+    if (!this.client.isReady() || !this.token) return;
+    
+    try {
+      console.log('Registering slash commands...');
+      
+      const botConfig = await storage.getBotConfig();
+      if (!botConfig || !botConfig.useSlashCommands) {
+        console.log('Slash commands are disabled in config.');
+        return;
+      }
+      
+      // Get all active commands
+      const commands = Array.from(this.commands.values()).filter(cmd => cmd.active);
+      
+      if (commands.length === 0) {
+        console.log('No active commands to register as slash commands.');
+        return;
+      }
+      
+      // Create the REST API instance
+      const rest = new REST({ version: '10' }).setToken(this.token);
+      
+      // Format commands for registration
+      const slashCommands = commands.map(cmd => ({
+        name: cmd.name.toLowerCase(),
+        description: cmd.description || `Run the ${cmd.name} command`,
+        type: ApplicationCommandType.ChatInput,
+      }));
+      
+      console.log(`Registering ${slashCommands.length} slash commands...`);
+      
+      if (this.client.user) {
+        // Register commands globally (available in all servers)
+        await rest.put(
+          Routes.applicationCommands(this.client.user.id),
+          { body: slashCommands }
+        );
+        
+        console.log('Successfully registered application commands.');
+      }
+    } catch (error) {
+      console.error('Error registering slash commands:', error);
+    }
+  }
+  
+  /**
+   * Handle an incoming slash command interaction
+   */
+  private async handleSlashCommand(interaction: ChatInputCommandInteraction) {
+    if (!interaction.guild) return;
+    
+    // Check if the server is enabled
+    const server = await storage.getServerByServerId(interaction.guild.id);
+    if (!server || !server.enabled) {
+      return interaction.reply({ 
+        content: 'This bot is disabled in this server.', 
+        ephemeral: true 
+      });
+    }
+    
+    // Get the command name
+    const commandName = interaction.commandName.toLowerCase();
+    
+    // Find the command in our database
+    const command = this.commands.get(commandName) || 
+                   Array.from(this.commands.values()).find(cmd => 
+                     cmd.name.toLowerCase() === commandName
+                   );
+    
+    if (!command || !command.active) {
+      return interaction.reply({ 
+        content: 'That command no longer exists or is inactive.', 
+        ephemeral: true 
+      });
+    }
+    
+    // Check permissions
+    if (command.requiredPermission !== 'everyone') {
+      let hasPermission = false;
+      
+      if (command.requiredPermission === 'admin' && interaction.memberPermissions?.has('Administrator')) {
+        hasPermission = true;
+      } else if (command.requiredPermission === 'moderator' && 
+               (interaction.memberPermissions?.has('ManageMessages') || 
+                interaction.memberPermissions?.has('Administrator'))) {
+        hasPermission = true;
+      } else if (command.requiredPermission === 'server-owner' && 
+               interaction.guild.ownerId === interaction.user.id) {
+        hasPermission = true;
+      }
+      
+      if (!hasPermission) {
+        // Log permission denied
+        await storage.createCommandLog({
+          serverId: interaction.guild.id,
+          serverName: interaction.guild.name,
+          channelId: interaction.channel?.id || '0',
+          channelName: interaction.channel?.name || 'unknown',
+          userId: interaction.user.id,
+          username: interaction.user.tag,
+          commandName: command.name,
+          status: 'permission_denied'
+        });
+        
+        return interaction.reply({ 
+          content: 'You do not have permission to use this command.', 
+          ephemeral: true 
+        });
+      }
+    }
+    
+    try {
+      // Defer reply to give us time to process
+      await interaction.deferReply({ ephemeral: command.deleteUserMessage || false });
+      
+      // Process the command
+      let response = command.response;
+      
+      // Replace placeholders with actual values
+      response = response
+        .replace('{user}', interaction.user.username)
+        .replace('{server}', interaction.guild.name)
+        .replace('{ping}', this.client.ws.ping.toString());
+      
+      // Increment usage count
+      await storage.incrementCommandUsage(command.id);
+      
+      // Send the response based on command type
+      if (command.type === 'embed') {
+        const embed = new EmbedBuilder()
+          .setColor('#7289DA')
+          .setDescription(response);
+          
+        await interaction.editReply({ embeds: [embed] });
+      } else {
+        await interaction.editReply(response);
+      }
+      
+      // Call webhook if configured
+      if (command.webhookUrl) {
+        console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
+        try {
+          // Prepare webhook payload with rich context information
+          const webhookPayload = {
+            command: command.name,
+            user: {
+              id: interaction.user.id,
+              username: interaction.user.username,
+              discriminator: interaction.user.discriminator,
+              avatarUrl: interaction.user.displayAvatarURL()
+            },
+            server: {
+              id: interaction.guild.id,
+              name: interaction.guild.name,
+            },
+            channel: {
+              id: interaction.channel?.id || '0',
+              name: interaction.channel?.name || 'unknown'
+            },
+            interaction: {
+              id: interaction.id,
+              timestamp: interaction.createdAt
+            },
+            timestamp: new Date()
+          };
+
+          // Send webhook request
+          await axios.post(command.webhookUrl, webhookPayload, {
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Discord-Bot-Manager'
+            },
+            timeout: 5000 // 5 second timeout to prevent hanging
+          });
+          
+          console.log(`Webhook triggered for command ${command.name}`);
+        } catch (webhookError) {
+          console.error(`Error sending webhook for command ${command.name}:`, webhookError);
+          // Continue execution - webhook errors shouldn't affect the user experience
+        }
+      }
+      
+      // Log command usage
+      if (command.logUsage) {
+        await storage.createCommandLog({
+          serverId: interaction.guild.id,
+          serverName: interaction.guild.name,
+          channelId: interaction.channel?.id || '0',
+          channelName: interaction.channel?.name || 'unknown',
+          userId: interaction.user.id,
+          username: interaction.user.tag,
+          commandName: command.name,
+          status: 'success'
+        });
+      }
+    } catch (error) {
+      console.error(`Error executing slash command ${command.name}:`, error);
+      
+      // If deferred, edit reply, otherwise send new reply
+      const replyMethod = interaction.deferred ? interaction.editReply : interaction.reply;
+      await replyMethod.call(interaction, { 
+        content: 'There was an error executing that command.', 
+        ephemeral: true 
+      });
+      
+      // Log command failure
+      await storage.createCommandLog({
+        serverId: interaction.guild.id,
+        serverName: interaction.guild.name,
+        channelId: interaction.channel?.id || '0',
+        channelName: interaction.channel?.name || 'unknown',
+        userId: interaction.user.id,
+        username: interaction.user.tag,
+        commandName: command.name,
+        status: 'failed'
+      });
+    }
   }
 }
 

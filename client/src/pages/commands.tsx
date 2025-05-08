@@ -35,6 +35,7 @@ const Commands: React.FC = () => {
   const defaultCommand: InsertCommand = {
     name: '',
     type: 'text',
+    description: '',
     response: '',
     webhookUrl: '',
     requiredPermission: 'everyone',
