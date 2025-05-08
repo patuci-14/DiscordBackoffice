@@ -456,11 +456,20 @@ class DiscordBot {
       const rest = new REST({ version: '10' }).setToken(this.token);
       
       // Format commands for registration
-      const slashCommands = commands.map(cmd => ({
-        name: cmd.name.toLowerCase(),
-        description: cmd.description || `Run the ${cmd.name} command`,
-        type: ApplicationCommandType.ChatInput,
-      }));
+      const slashCommands = commands.map(cmd => {
+        const commandData: any = {
+          name: cmd.name.toLowerCase(),
+          description: cmd.description || `Run the ${cmd.name} command`,
+          type: ApplicationCommandType.ChatInput,
+        };
+        
+        // Add options if defined
+        if (cmd.options && Object.keys(cmd.options).length > 0) {
+          commandData.options = cmd.options;
+        }
+        
+        return commandData;
+      });
       
       console.log(`Registering ${slashCommands.length} slash commands...`);
       

@@ -74,6 +74,7 @@ export const commands = pgTable("commands", {
   logUsage: boolean("log_usage").default(true),
   active: boolean("active").default(true),
   usageCount: integer("usage_count").default(0),
+  options: json("options").default({}), // Store slash command options
 });
 
 export const insertCommandSchema = createInsertSchema(commands).pick({
@@ -88,6 +89,7 @@ export const insertCommandSchema = createInsertSchema(commands).pick({
   deleteUserMessage: true,
   logUsage: true,
   active: true,
+  options: true,
 });
 
 // Command Logs
