@@ -125,6 +125,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       name,
       type,
       response,
+      webhookUrl,
       requiredPermission,
       cooldown,
       enabledForAllServers,
@@ -198,6 +199,18 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
             className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
           />
           <p className="text-xs text-discord-text-secondary mt-1">You can use {'{user}'} for the user's name, {'{server}'} for the server name.</p>
+        </div>
+        
+        <div className="mb-6">
+          <Label className="block text-discord-text-secondary text-sm mb-1">Webhook URL (Optional)</Label>
+          <Input
+            type="text"
+            placeholder="https://your-webhook-url.com/path"
+            value={webhookUrl}
+            onChange={(e) => setWebhookUrl(e.target.value)}
+            className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
+          />
+          <p className="text-xs text-discord-text-secondary mt-1">When this command is used, a webhook request will be sent to this URL.</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

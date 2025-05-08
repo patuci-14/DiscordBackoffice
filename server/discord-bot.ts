@@ -1,4 +1,5 @@
 import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder } from 'discord.js';
+import axios from 'axios';
 import { storage } from './storage';
 import { BotConfig, Server, InsertServer, Command, InsertCommandLog } from '@shared/schema';
 
@@ -135,6 +136,51 @@ class DiscordBot {
           await message.channel.send({ embeds: [embed] });
         } else {
           await message.channel.send(response);
+        }
+        
+        // Call webhook if configured
+        if (command.webhookUrl) {
+          try {
+            // Prepare webhook payload with rich context information
+            const webhookPayload = {
+              command: command.name,
+              user: {
+                id: message.author.id,
+                username: message.author.username,
+                discriminator: message.author.discriminator,
+                avatarUrl: message.author.displayAvatarURL()
+              },
+              server: {
+                id: message.guild.id,
+                name: message.guild.name,
+              },
+              channel: {
+                id: message.channel.id,
+                name: message.channel.name
+              },
+              message: {
+                content: message.content,
+                id: message.id,
+                timestamp: message.createdAt
+              },
+              args: args || [],
+              timestamp: new Date()
+            };
+
+            // Send webhook request
+            await axios.post(command.webhookUrl, webhookPayload, {
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Discord-Bot-Manager'
+              },
+              timeout: 5000 // 5 second timeout to prevent hanging
+            });
+            
+            console.log(`Webhook triggered for command ${command.name}`);
+          } catch (webhookError) {
+            console.error(`Error sending webhook for command ${command.name}:`, webhookError);
+            // Continue execution - webhook errors shouldn't affect the user experience
+          }
         }
         
         // Delete the user's message if specified
