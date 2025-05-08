@@ -102,6 +102,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
               <tr>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Command</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Type</th>
+                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Description</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Response</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Webhook</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Permissions</th>
@@ -121,6 +122,9 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                       <div className="h-4 bg-discord-bg-tertiary rounded w-12"></div>
                     </td>
                     <td className="px-4 py-3">
+                      <div className="h-4 bg-discord-bg-tertiary rounded w-36"></div>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="h-4 bg-discord-bg-tertiary rounded w-32"></div>
                     </td>
                     <td className="px-4 py-3">
@@ -128,6 +132,9 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                     </td>
                     <td className="px-4 py-3">
                       <div className="h-4 bg-discord-bg-tertiary rounded w-8"></div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 bg-discord-bg-tertiary rounded w-16"></div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="h-4 bg-discord-bg-tertiary rounded w-16"></div>

@@ -38,6 +38,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
     if (command) {
       setName(command.name || '');
       setType(command.type as 'text' | 'slash' | 'embed');
+      setDescription(command.description || '');
       setResponse(command.response || '');
       setWebhookUrl(command.webhookUrl || '');
       setRequiredPermission(command.requiredPermission as 'everyone' | 'moderator' | 'admin' | 'server-owner');
@@ -113,6 +114,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Basic validation
     if (!name.trim() || !response.trim()) {
       toast({
         variant: 'destructive',
@@ -122,9 +124,20 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       return;
     }
     
+    // For slash commands, description is required
+    if (type === 'slash' && !description.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Description is required for slash commands.',
+      });
+      return;
+    }
+    
     const commandData: InsertCommand = {
       name,
       type,
+      description,
       response,
       webhookUrl,
       requiredPermission,
@@ -188,6 +201,20 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
               </SelectContent>
             </Select>
           </div>
+        </div>
+        
+        <div className="mb-6">
+          <Label className="block text-discord-text-secondary text-sm mb-1">Description {type === 'slash' && <span className="text-discord-blurple">*</span>}</Label>
+          <Input
+            type="text"
+            placeholder="Brief description of what this command does..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
+          />
+          <p className="text-xs text-discord-text-secondary mt-1">
+            {type === 'slash' ? 'Required for slash commands. This will be shown in Discord when users type "/" and see available commands.' : 'Optional description for documentation purposes.'}
+          </p>
         </div>
         
         <div className="mb-6">
