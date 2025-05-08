@@ -466,10 +466,10 @@ class DiscordBot {
         // Add options if defined
         if (cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0) {
           commandData.options = cmd.options.map(option => ({
-            name: option.name.toLowerCase(),
+            name: option.name.toLowerCase().replace(/\s+/g, '_'),
             description: option.description || `Option for ${cmd.name}`,
             type: this.getApplicationCommandOptionType(option.type),
-            required: !!option.required
+            required: option.required === true
           }));
         }
         
@@ -565,7 +565,41 @@ class DiscordBot {
       // Process the command
       let response = command.response;
       
-      // Replace placeholders with actual values
+      // Get option values from the interaction
+      if (command.options && Array.isArray(command.options) && command.options.length > 0) {
+        // Log options for debugging
+        console.log('Command has options:', command.options);
+        console.log('Interaction options:', interaction.options.data);
+        
+        // Replace option placeholders in the response
+        command.options.forEach(option => {
+          const optionName = option.name.toLowerCase().replace(/\s+/g, '_');
+          let optionValue = '';
+          
+          // Get the value based on option type
+          if (option.type === 'STRING') {
+            optionValue = interaction.options.getString(optionName) || '';
+          } else if (option.type === 'INTEGER' || option.type === 'NUMBER') {
+            optionValue = String(interaction.options.getNumber(optionName) || '');
+          } else if (option.type === 'BOOLEAN') {
+            optionValue = String(interaction.options.getBoolean(optionName) || '');
+          } else if (option.type === 'USER') {
+            const user = interaction.options.getUser(optionName);
+            optionValue = user ? user.username : '';
+          } else if (option.type === 'CHANNEL') {
+            const channel = interaction.options.getChannel(optionName);
+            optionValue = channel ? channel.name : '';
+          } else if (option.type === 'ROLE') {
+            const role = interaction.options.getRole(optionName);
+            optionValue = role ? role.name : '';
+          }
+          
+          // Replace the placeholder in the response
+          response = response.replace(`{${optionName}}`, optionValue);
+        });
+      }
+      
+      // Replace standard placeholders with actual values
       response = response
         .replace('{user}', interaction.user.username)
         .replace('{server}', interaction.guild.name)
@@ -590,7 +624,7 @@ class DiscordBot {
         console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
         try {
           // Prepare webhook payload with rich context information
-          const webhookPayload = {
+          const webhookPayload: any = {
             command: command.name,
             user: {
               id: interaction.user.id,
@@ -612,6 +646,14 @@ class DiscordBot {
             },
             timestamp: new Date()
           };
+          
+          // Add option values to the webhook payload
+          if (interaction.options && interaction.options.data.length > 0) {
+            webhookPayload.options = {};
+            interaction.options.data.forEach(option => {
+              webhookPayload.options[option.name] = option.value;
+            });
+          }
 
           // Send webhook request with appropriate timeout and retry
           const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
@@ -678,13 +720,18 @@ class DiscordBot {
    * Convert string option type to Discord.js ApplicationCommandOptionType
    */
   private getApplicationCommandOptionType(type: string): number {
+    // These values match Discord's API requirements
+    // https://discord.com/developers/docs/interactions/application-commands#application-command-object-application-command-option-type
     const ApplicationCommandOptionType = {
       'STRING': 3,
       'INTEGER': 4,
       'BOOLEAN': 5,
       'USER': 6,
       'CHANNEL': 7,
-      'ROLE': 8
+      'ROLE': 8,
+      'MENTIONABLE': 9,
+      'NUMBER': 10,
+      'ATTACHMENT': 11
     };
     
     return ApplicationCommandOptionType[type as keyof typeof ApplicationCommandOptionType] || 3; // Default to STRING
