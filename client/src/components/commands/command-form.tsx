@@ -32,6 +32,8 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   const [deleteUserMessage, setDeleteUserMessage] = useState(false);
   const [logUsage, setLogUsage] = useState(true);
   const [active, setActive] = useState(true);
+  const [options, setOptions] = useState<any[]>([]);
+  const [showOptionsPanel, setShowOptionsPanel] = useState(false);
   
   // Initialize form with command data if provided
   useEffect(() => {
@@ -47,6 +49,14 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       setDeleteUserMessage(command.deleteUserMessage || false);
       setLogUsage(command.logUsage || true);
       setActive(command.active || true);
+      
+      // Set options if available
+      if ('options' in command && command.options) {
+        setOptions(command.options as any[]);
+        if (command.options.length > 0) {
+          setShowOptionsPanel(true);
+        }
+      }
     }
   }, [command]);
   
@@ -155,7 +165,8 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       enabledForAllServers,
       deleteUserMessage,
       logUsage,
-      active
+      active,
+      options: type === 'slash' && options.length > 0 ? options : []
     };
     
     if (isEditing && command && 'id' in command) {
@@ -176,6 +187,34 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   
   const isProcessing = createCommandMutation.isPending || updateCommandMutation.isPending || deleteCommandMutation.isPending;
   
+  // Functions to handle slash command options
+  const addOption = () => {
+    setOptions([
+      ...options,
+      {
+        name: '',
+        description: '',
+        type: 'STRING',
+        required: false
+      }
+    ]);
+  };
+
+  const removeOption = (index: number) => {
+    const newOptions = [...options];
+    newOptions.splice(index, 1);
+    setOptions(newOptions);
+  };
+
+  const updateOption = (index: number, field: string, value: any) => {
+    const newOptions = [...options];
+    newOptions[index] = {
+      ...newOptions[index],
+      [field]: value
+    };
+    setOptions(newOptions);
+  };
+
   return (
     <div>
       <h3 className="font-bold mb-4">{isEditing ? 'Edit Command' : 'Create New Command'}</h3>
@@ -309,6 +348,103 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
             />
           </div>
         </div>
+        
+        {type === 'slash' && (
+          <div className="mb-6 border border-gray-700 rounded-md p-4 bg-discord-bg-secondary">
+            <div className="flex justify-between items-center mb-3">
+              <Label className="text-discord-text-secondary text-sm font-medium">
+                Slash Command Parameters
+              </Label>
+              
+              <Button
+                type="button"
+                onClick={() => setShowOptionsPanel(!showOptionsPanel)}
+                className="text-xs py-1 px-2 bg-discord-bg-tertiary text-discord-text hover:bg-opacity-80"
+              >
+                {showOptionsPanel ? 'Hide Options' : 'Show Options'}
+              </Button>
+            </div>
+            
+            {showOptionsPanel && (
+              <div className="space-y-4">
+                <p className="text-xs text-discord-text-secondary">
+                  Define parameters that users will provide when using this slash command. 
+                  These will appear as options in Discord when users type the command.
+                </p>
+                
+                {options.map((option, index) => (
+                  <div key={index} className="border border-gray-700 rounded p-3 space-y-3">
+                    <div className="flex justify-between">
+                      <h4 className="text-sm font-medium text-discord-text">Parameter #{index + 1}</h4>
+                      <Button
+                        type="button"
+                        onClick={() => removeOption(index)}
+                        className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="block text-discord-text-secondary text-xs mb-1">Name</Label>
+                        <Input
+                          value={option.name}
+                          onChange={(e) => updateOption(index, 'name', e.target.value)}
+                          placeholder="parameter_name"
+                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="block text-discord-text-secondary text-xs mb-1">Type</Label>
+                        <Select value={option.type} onValueChange={(value) => updateOption(index, 'type', value)}>
+                          <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="STRING">String</SelectItem>
+                            <SelectItem value="INTEGER">Integer</SelectItem>
+                            <SelectItem value="BOOLEAN">Boolean</SelectItem>
+                            <SelectItem value="USER">User</SelectItem>
+                            <SelectItem value="CHANNEL">Channel</SelectItem>
+                            <SelectItem value="ROLE">Role</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label className="block text-discord-text-secondary text-xs mb-1">Description</Label>
+                      <Input
+                        value={option.description}
+                        onChange={(e) => updateOption(index, 'description', e.target.value)}
+                        placeholder="What this parameter does..."
+                        className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                      />
+                    </div>
+                    
+                    <div>
+                      <ToggleSwitch
+                        checked={option.required}
+                        onChange={(checked) => updateOption(index, 'required', checked)}
+                        label="Required parameter"
+                      />
+                    </div>
+                  </div>
+                ))}
+                
+                <Button
+                  type="button"
+                  onClick={addOption}
+                  className="w-full py-2 mt-2 border border-dashed border-discord-blurple bg-discord-bg-secondary text-discord-blurple hover:bg-discord-blurple hover:bg-opacity-10"
+                >
+                  + Add Parameter
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
         
         <div className="flex justify-end space-x-3">
           {isEditing && (
