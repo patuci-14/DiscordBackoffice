@@ -92,7 +92,7 @@ const Config: React.FC = () => {
       setBotStatus(config.status || 'online');
       setActivityType(config.activityType || 'PLAYING');
       setActivity(config.activity || '');
-      setUseSlashCommands(config.useSlashCommands !== false);
+      setUseSlashCommands(config.useSlashCommands === true);
       setFormChanged(false);
     }
   }, [botInfoData]);
@@ -107,7 +107,7 @@ const Config: React.FC = () => {
         botStatus !== (config.status || 'online') ||
         activityType !== (config.activityType || 'PLAYING') ||
         activity !== (config.activity || '') ||
-        useSlashCommands !== (config.useSlashCommands !== false);
+        useSlashCommands !== (config.useSlashCommands === true);
       
       setFormChanged(changed);
     }

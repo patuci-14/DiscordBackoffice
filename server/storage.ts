@@ -178,8 +178,16 @@ export class MemStorage implements IStorage {
 
   async createBotConfig(config: InsertBotConfig): Promise<BotConfig> {
     const newConfig: BotConfig = {
-      ...config,
       id: 1,
+      name: config.name || null,
+      activity: config.activity || null,
+      status: config.status || null,
+      token: config.token,
+      botId: config.botId || null,
+      prefix: config.prefix || null,
+      activityType: config.activityType || null,
+      avatarUrl: config.avatarUrl || null,
+      useSlashCommands: config.useSlashCommands || false,
       lastConnected: new Date()
     };
     this.botConfig = newConfig;
