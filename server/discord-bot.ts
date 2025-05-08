@@ -455,8 +455,10 @@ class DiscordBot {
       // Create the REST API instance
       const rest = new REST({ version: '10' }).setToken(this.token);
       
-      // Format commands for registration
+      // Format commands for registration with detailed logging
       const slashCommands = commands.map(cmd => {
+        console.log(`\nPreparing slash command: "${cmd.name}"`);
+        
         const commandData: any = {
           name: cmd.name.toLowerCase(),
           description: cmd.description || `Run the ${cmd.name} command`,
@@ -465,30 +467,41 @@ class DiscordBot {
         
         // Add options if defined
         if (cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0) {
-          console.log(`Command "${cmd.name}" has ${cmd.options.length} options:`, cmd.options);
+          console.log(`Command "${cmd.name}" has ${cmd.options.length} options:`, JSON.stringify(cmd.options, null, 2));
           
           commandData.options = cmd.options.map(option => {
             // Ensure option name follows Discord requirements
             const optionName = option.name.toLowerCase().replace(/\s+/g, '_');
             
-            // Determine if option is required
-            const isRequired = option.required === true;
+            // Determine if option is required - explicitly convert to boolean
+            let isRequired = false;
+            if (option.required === true) {
+              isRequired = true;
+            }
             
-            console.log(`Processing option "${optionName}" (type: ${option.type}, required: ${isRequired})`);
+            console.log(`Processing option "${optionName}":
+  - type: ${option.type}
+  - required: ${isRequired}
+  - description: ${option.description || `Option for ${cmd.name}`}`);
             
-            return {
+            const optionData = {
               name: optionName,
               description: option.description || `Option for ${cmd.name}`,
               type: this.getApplicationCommandOptionType(option.type),
               required: isRequired
             };
+            
+            console.log(`Option formatted as: ${JSON.stringify(optionData)}`);
+            
+            return optionData;
           });
         }
         
         return commandData;
       });
       
-      console.log(`Registering ${slashCommands.length} slash commands...`);
+      console.log(`\nRegistering ${slashCommands.length} slash commands...`);
+      console.log(`Full slash commands data: ${JSON.stringify(slashCommands, null, 2)}`);
       
       if (this.client.user) {
         // Register commands globally (available in all servers)
