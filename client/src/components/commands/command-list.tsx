@@ -155,6 +155,11 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                         {command.type.charAt(0).toUpperCase() + command.type.slice(1)}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm truncate max-w-[200px]">
+                      {command.description || (
+                        <span className="text-discord-text-secondary italic">No description</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm truncate max-w-[200px]">{command.response}</td>
                     <td className="px-4 py-3 text-sm">
                       {command.webhookUrl ? (
@@ -187,7 +192,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-4 py-4 text-center text-discord-text-secondary">
+                  <td colSpan={9} className="px-4 py-4 text-center text-discord-text-secondary">
                     {searchTerm || typeFilter !== 'all'
                       ? 'No commands match your search or filter'
                       : 'No commands found. Create your first command to get started.'}
