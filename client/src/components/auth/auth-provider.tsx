@@ -66,6 +66,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           id: bot.id,
           avatar: bot.avatar,
         });
+        // Save botId in localStorage
+        localStorage.setItem('botId', bot.id);
         toast({
           title: 'Connected successfully',
           description: `Bot ${bot.name} is now connected.`,
@@ -74,6 +76,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       } else {
         setIsAuthenticated(false);
         setBotInfo(null);
+        localStorage.removeItem('botId');
         toast({
           title: 'Connection failed',
           description: error || 'Invalid token or connection failed.',
@@ -84,6 +87,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } catch (error) {
       setIsAuthenticated(false);
       setBotInfo(null);
+      localStorage.removeItem('botId');
       toast({
         title: 'Connection error',
         description: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -103,6 +107,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (success) {
         setIsAuthenticated(false);
         setBotInfo(null);
+        localStorage.removeItem('botId');
         toast({
           title: 'Disconnected',
           description: 'Bot has been disconnected successfully.',

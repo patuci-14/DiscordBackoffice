@@ -25,6 +25,15 @@ const Config: React.FC = () => {
   const [activityType, setActivityType] = useState('PLAYING');
   const [activity, setActivity] = useState('');
   const [useSlashCommands, setUseSlashCommands] = useState(true);
+  const [logCommandUsage, setLogCommandUsage] = useState(true);
+  const [respondToMentions, setRespondToMentions] = useState(true);
+  const [deleteCommandMessages, setDeleteCommandMessages] = useState(false);
+  const [enableWelcomeMessages, setEnableWelcomeMessages] = useState(true);
+  const [enableGoodbyeMessages, setEnableGoodbyeMessages] = useState(true);
+  const [enableAutoRole, setEnableAutoRole] = useState(false);
+  const [enableLogging, setEnableLogging] = useState(true);
+  const [enableAntiSpam, setEnableAntiSpam] = useState(true);
+  const [enableAutoMod, setEnableAutoMod] = useState(true);
   const [formChanged, setFormChanged] = useState(false);
 
   // Fetch bot config
@@ -93,6 +102,15 @@ const Config: React.FC = () => {
       setActivityType(config.activityType || 'PLAYING');
       setActivity(config.activity || '');
       setUseSlashCommands(config.useSlashCommands === true);
+      setLogCommandUsage(config.logCommandUsage === true);
+      setRespondToMentions(config.respondToMentions === true);
+      setDeleteCommandMessages(config.deleteCommandMessages === true);
+      setEnableWelcomeMessages(config.enableWelcomeMessages === true);
+      setEnableGoodbyeMessages(config.enableGoodbyeMessages === true);
+      setEnableAutoRole(config.enableAutoRole === true);
+      setEnableLogging(config.enableLogging === true);
+      setEnableAntiSpam(config.enableAntiSpam === true);
+      setEnableAutoMod(config.enableAutoMod === true);
       setFormChanged(false);
     }
   }, [botInfoData]);
@@ -107,11 +125,26 @@ const Config: React.FC = () => {
         botStatus !== (config.status || 'online') ||
         activityType !== (config.activityType || 'PLAYING') ||
         activity !== (config.activity || '') ||
-        useSlashCommands !== (config.useSlashCommands === true);
+        useSlashCommands !== (config.useSlashCommands === true) ||
+        logCommandUsage !== (config.logCommandUsage === true) ||
+        respondToMentions !== (config.respondToMentions === true) ||
+        deleteCommandMessages !== (config.deleteCommandMessages === true) ||
+        enableWelcomeMessages !== (config.enableWelcomeMessages === true) ||
+        enableGoodbyeMessages !== (config.enableGoodbyeMessages === true) ||
+        enableAutoRole !== (config.enableAutoRole === true) ||
+        enableLogging !== (config.enableLogging === true) ||
+        enableAntiSpam !== (config.enableAntiSpam === true) ||
+        enableAutoMod !== (config.enableAutoMod === true);
       
       setFormChanged(changed);
     }
-  }, [botName, botPrefix, botStatus, activityType, activity, useSlashCommands, botInfoData, isBotInfoLoading]);
+  }, [
+    botName, botPrefix, botStatus, activityType, activity, useSlashCommands,
+    logCommandUsage, respondToMentions, deleteCommandMessages,
+    enableWelcomeMessages, enableGoodbyeMessages, enableAutoRole,
+    enableLogging, enableAntiSpam, enableAutoMod,
+    botInfoData, isBotInfoLoading
+  ]);
 
   // Handle server toggle
   const handleServerToggle = (serverId: number, enabled: boolean) => {
@@ -126,7 +159,16 @@ const Config: React.FC = () => {
       status: botStatus,
       activityType,
       activity,
-      useSlashCommands
+      useSlashCommands,
+      logCommandUsage,
+      respondToMentions,
+      deleteCommandMessages,
+      enableWelcomeMessages,
+      enableGoodbyeMessages,
+      enableAutoRole,
+      enableLogging,
+      enableAntiSpam,
+      enableAutoMod
     };
     
     updateBotConfigMutation.mutate(configUpdate);
@@ -229,6 +271,88 @@ const Config: React.FC = () => {
         </CardContent>
       </Card>
       
+      {/* Bot Features Card */}
+      <Card className="bg-discord-bg-secondary rounded-lg shadow mb-6">
+        <CardHeader>
+          <h3 className="font-bold">Bot Features</h3>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={logCommandUsage}
+                onChange={setLogCommandUsage}
+              />
+              <Label className="text-discord-text-secondary ml-3">Log Command Usage</Label>
+            </div>
+            
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={respondToMentions}
+                onChange={setRespondToMentions}
+              />
+              <Label className="text-discord-text-secondary ml-3">Respond to Mentions</Label>
+            </div>
+            
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={deleteCommandMessages}
+                onChange={setDeleteCommandMessages}
+              />
+              <Label className="text-discord-text-secondary ml-3">Delete Command Messages</Label>
+            </div>
+            
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={enableWelcomeMessages}
+                onChange={setEnableWelcomeMessages}
+              />
+              <Label className="text-discord-text-secondary ml-3">Welcome Messages</Label>
+            </div>
+            
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={enableGoodbyeMessages}
+                onChange={setEnableGoodbyeMessages}
+              />
+              <Label className="text-discord-text-secondary ml-3">Goodbye Messages</Label>
+            </div>
+            
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={enableAutoRole}
+                onChange={setEnableAutoRole}
+              />
+              <Label className="text-discord-text-secondary ml-3">Auto Role</Label>
+            </div>
+            
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={enableLogging}
+                onChange={setEnableLogging}
+              />
+              <Label className="text-discord-text-secondary ml-3">Enable Logging</Label>
+            </div>
+            
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={enableAntiSpam}
+                onChange={setEnableAntiSpam}
+              />
+              <Label className="text-discord-text-secondary ml-3">Anti-Spam Protection</Label>
+            </div>
+            
+            <div className="flex items-center">
+              <ToggleSwitch
+                checked={enableAutoMod}
+                onChange={setEnableAutoMod}
+              />
+              <Label className="text-discord-text-secondary ml-3">Auto Moderation</Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
       {/* Servers Configuration Card */}
       <Card className="bg-discord-bg-secondary rounded-lg shadow mb-6">
         <CardHeader>
@@ -287,61 +411,7 @@ const Config: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-      
-      {/* Advanced Settings Card */}
-      <Card className="bg-discord-bg-secondary rounded-lg shadow">
-        <CardHeader>
-          <h3 className="font-bold">Advanced Settings</h3>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label className="block text-discord-text-secondary text-sm mb-1">Default Command Cooldown (seconds)</Label>
-              <Input
-                type="number"
-                defaultValue="3"
-                min="0"
-                className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
-              />
-            </div>
-            
-            <div>
-              <Label className="block text-discord-text-secondary text-sm mb-1">Error Log Channel</Label>
-              <Input
-                type="text"
-                placeholder="Channel ID for error logs"
-                className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
-              />
-            </div>
-          </div>
-          
-          <div className="mt-6 space-y-4">
-            <ToggleSwitch
-              checked={true}
-              onChange={() => {}}
-              label="Log command usage"
-            />
-            
-            <ToggleSwitch
-              checked={true}
-              onChange={() => {}}
-              label="Respond to mentions"
-            />
-            
-            <ToggleSwitch
-              checked={false}
-              onChange={() => {}}
-              label="Developer mode"
-            />
-            
-            <ToggleSwitch
-              checked={true}
-              onChange={() => {}}
-              label="Auto-reconnect on disconnect"
-            />
-          </div>
-        </CardContent>
-      </Card>
+    
     </AppShell>
   );
 };

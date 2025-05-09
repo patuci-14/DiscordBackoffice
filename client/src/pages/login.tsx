@@ -61,7 +61,7 @@ const Login: React.FC = () => {
         <CardContent className="p-0">
           <div className="text-center mb-8">
             <i className="fab fa-discord text-discord-blurple text-5xl mb-4"></i>
-            <h1 className="text-2xl font-bold text-white">Discord Bot Backoffice</h1>
+            <h1 className="text-2xl font-bold text-white">Bot Manager</h1>
             <p className="text-discord-text-secondary mt-2">Connect your Discord bot to manage it</p>
           </div>
           
@@ -75,7 +75,7 @@ const Login: React.FC = () => {
                   placeholder="Enter your bot token"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
-                  className="w-full px-4 py-2 bg-discord-bg-tertiary border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-discord-blurple focus:border-transparent text-white"
+                  className="w-full px-4 py-2 pr-[35px] bg-discord-bg-tertiary border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-discord-blurple focus:border-transparent text-white"
                 />
                 <button 
                   type="button" 

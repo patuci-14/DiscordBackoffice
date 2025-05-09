@@ -6,9 +6,11 @@ import LogTable from '@/components/logs/log-table';
 import { Button } from '@/components/ui/button';
 import { getLogs } from '@/lib/discord-api';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/auth/auth-provider';
 
 const Logs: React.FC = () => {
   const { toast } = useToast();
+  const { botInfo } = useAuth();
   const [filterParams, setFilterParams] = useState({
     server: 'all',
     command: 'all',
@@ -18,13 +20,14 @@ const Logs: React.FC = () => {
   });
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['/api/logs', filterParams],
+    queryKey: ['/api/logs', filterParams, botInfo?.id],
     queryFn: () => getLogs({
       ...filterParams,
       server: filterParams.server === 'all' ? '' : filterParams.server,
       command: filterParams.command === 'all' ? '' : filterParams.command
     }),
     retry: false,
+    enabled: !!botInfo?.id // Only run query when we have a botId
   });
 
   const handleExportLogs = () => {

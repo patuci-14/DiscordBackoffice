@@ -7,15 +7,21 @@ import { z } from 'zod';
 const commandValidator = z.object({
   name: z.string().min(1).max(32),
   type: z.enum(['text', 'slash', 'embed']),
-  response: z.string().min(1),
+  response: z.string().optional(),
   description: z.string().nullable().optional(),
-  webhookUrl: z.string().nullable().optional(),
+  webhookUrl: z.string().nullable().optional().or(z.literal('')),
   requiredPermission: z.enum(['everyone', 'moderator', 'admin', 'server-owner']),
   cooldown: z.number().int().min(0),
   enabledForAllServers: z.boolean(),
   deleteUserMessage: z.boolean(),
   logUsage: z.boolean(),
-  active: z.boolean()
+  active: z.boolean(),
+  options: z.array(z.object({
+    name: z.string(),
+    description: z.string(),
+    type: z.enum(['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL', 'ROLE']),
+    required: z.boolean()
+  })).optional()
 });
 
 export const getCommands = async (req: Request, res: Response) => {
@@ -26,9 +32,17 @@ export const getCommands = async (req: Request, res: Response) => {
         error: 'Bot is not connected' 
       });
     }
-    
-    const commands = await storage.getCommands();
-    
+
+    const { botId } = req.query;
+    if (!botId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Bot ID is required' 
+      });
+    }
+
+    const commands = await storage.getCommands(botId as string);
+
     return res.status(200).json({
       success: true,
       commands
@@ -102,10 +116,14 @@ export const createCommand = async (req: Request, res: Response) => {
       });
     }
     
-    const commandData = validation.data;
+    const commandData = {
+      ...validation.data,
+      botId: discordBot.getUser()?.id || "unknown",
+      response: validation.data.response ?? ''
+    };
     
     // Check if command already exists
-    const existingCommand = await storage.getCommandByName(commandData.name);
+    const existingCommand = await storage.getCommandByName(commandData.botId, commandData.name);
     
     if (existingCommand) {
       return res.status(409).json({ 
@@ -115,6 +133,15 @@ export const createCommand = async (req: Request, res: Response) => {
     }
     
     const newCommand = await storage.createCommand(commandData);
+    console.log('Novo comando criado:', newCommand);
+    
+    if (!newCommand) {
+      console.error('Falha ao criar comando:', commandData);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create command'
+      });
+    }
     
     // Reload the bot's commands
     await discordBot.reloadCommands();
@@ -184,7 +211,7 @@ export const updateCommand = async (req: Request, res: Response) => {
     
     // Check if name is being changed and if it already exists
     if (name && name !== existingCommand.name) {
-      const commandWithName = await storage.getCommandByName(name);
+      const commandWithName = await storage.getCommandByName(existingCommand.botId, name);
       
       if (commandWithName) {
         return res.status(409).json({ 
@@ -224,16 +251,33 @@ export const deleteCommand = async (req: Request, res: Response) => {
     const { id } = req.params;
     const commandId = parseInt(id);
     
+    console.log('Attempting to delete command with ID:', commandId);
+    
     if (isNaN(commandId)) {
+      console.log('Invalid command ID provided:', id);
       return res.status(400).json({ 
         success: false,
         error: 'Invalid command ID' 
       });
     }
     
+    // Verificar se o comando existe antes de tentar deletar
+    const existingCommand = await storage.getCommand(commandId);
+    if (!existingCommand) {
+      console.log('Command not found with ID:', commandId);
+      return res.status(404).json({ 
+        success: false,
+        error: 'Command not found' 
+      });
+    }
+    
+    console.log('Found command to delete:', existingCommand);
+    
     const deleted = await storage.deleteCommand(commandId);
+    console.log('Delete operation result:', deleted);
     
     if (!deleted) {
+      console.log('Delete operation returned false for command ID:', commandId);
       return res.status(404).json({ 
         success: false,
         error: 'Command not found' 
@@ -241,6 +285,7 @@ export const deleteCommand = async (req: Request, res: Response) => {
     }
     
     // Reload the bot's commands
+    console.log('Reloading bot commands after deletion');
     await discordBot.reloadCommands();
     
     return res.status(200).json({

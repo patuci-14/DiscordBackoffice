@@ -7,14 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getCommands } from '@/lib/discord-api';
 import { InsertCommand } from '@shared/schema';
+import { useAuth } from '@/components/auth/auth-provider';
 
 const Commands: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingCommand, setEditingCommand] = useState<number | null>(null);
+  const { botInfo } = useAuth();
   
   const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/commands'],
+    queryKey: ['/api/commands', botInfo?.id],
+    queryFn: () => getCommands(),
     retry: false,
+    enabled: !!botInfo?.id // Só busca comandos quando há botId
   });
 
   const handleCreateCommand = () => {
@@ -33,6 +37,7 @@ const Commands: React.FC = () => {
   };
 
   const defaultCommand: InsertCommand = {
+    botId: botInfo?.id || '',
     name: '',
     type: 'text',
     description: '',

@@ -7,20 +7,41 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getBotInfo, getBotStats } from '@/lib/discord-api';
 import { useToast } from '@/hooks/use-toast';
-import { RecentActivity } from '@shared/schema';
+import { BotConfig, BotStat, RecentActivity } from '@shared/schema';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+import { useAuth } from '@/components/auth/auth-provider';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const Dashboard: React.FC = () => {
   const { toast } = useToast();
+  const { botInfo } = useAuth();
 
-  const { data: botInfoData, isLoading: isBotInfoLoading, refetch: refetchBotInfo } = useQuery({
-    queryKey: ['/api/bot'],
+  const { data: botInfoData, isLoading: isBotInfoLoading, refetch: refetchBotInfo } = useQuery<{ success: boolean; config?: BotConfig }>({
+    queryKey: ['/api/bot', botInfo?.id],
+    queryFn: () => getBotInfo(),
     retry: false,
+    enabled: !!botInfo?.id // Only run query when we have a botId
   });
 
-  const { data: statsData, isLoading: isStatsLoading, refetch: refetchStats } = useQuery({
-    queryKey: ['/api/bot/stats'],
+  const { data: statsData, isLoading: isStatsLoading, refetch: refetchStats } = useQuery<{ success: boolean; stats?: BotStat; recentActivity?: RecentActivity[] }>({
+    queryKey: ['/api/bot/stats', botInfo?.id],
+    queryFn: () => getBotStats(),
     retry: false,
+    enabled: !!botInfo?.id // Only run query when we have a botId
   });
+
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      refetchBotInfo();
+      refetchStats();
+    }, 60000);
+
+    return () => clearInterval(refreshInterval);
+  }, [refetchBotInfo, refetchStats]);
 
   const handleRefresh = async () => {
     try {
@@ -54,14 +75,13 @@ const Dashboard: React.FC = () => {
   };
 
   const formatTime = (timeStr: string) => {
-    const time = new Date(timeStr);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    const time = dayjs(new Date(timeStr)).tz('America/Sao_Paulo');
+    const now = dayjs().tz('America/Sao_Paulo');
+    const diffInSeconds = now.diff(time, 'second');
+    if (diffInSeconds < 60) return 'Agora mesmo';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutos atrás`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} horas atrás`;
+    return `${Math.floor(diffInSeconds / 86400)} dias atrás`;
   };
 
   const refreshButton = (
@@ -80,38 +100,38 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatsCard
           title="Servers"
-          value={isStatsLoading ? '...' : statsData?.stats?.serverCount || 0}
+          value={isStatsLoading ? '...' : statsData?.stats?.serverCount ?? 0}
           icon="fas fa-server"
           iconBgColor="bg-discord-blurple"
-          iconColor="text-discord-blurple"
-          subtitle={statsData?.stats?.serverCount > 0 ? `Active on ${statsData?.stats?.serverCount} servers` : 'No servers connected'}
+          iconColor="text-discord-white"
+          subtitle={statsData?.stats?.serverCount && statsData.stats.serverCount > 0 ? `Active on ${statsData.stats.serverCount} servers` : 'No servers connected'}
         />
         
         <StatsCard
           title="Commands Used"
-          value={isStatsLoading ? '...' : statsData?.stats?.commandsUsed || 0}
+          value={isStatsLoading ? '...' : statsData?.stats?.commandsUsed ?? 0}
           icon="fas fa-terminal"
           iconBgColor="bg-discord-green"
-          iconColor="text-discord-green"
-          subtitle={statsData?.stats?.commandsUsed > 0 ? `${Math.min(statsData?.stats?.commandsUsed, 24)} in the last 24 hours` : 'No commands used yet'}
+          iconColor="text-discord-white"
+          subtitle={statsData?.stats?.commandsUsed && statsData.stats.commandsUsed > 0 ? `${Math.min(statsData.stats.commandsUsed, 24)} in the last 24 hours` : 'No commands used yet'}
         />
         
         <StatsCard
           title="Active Users"
-          value={isStatsLoading ? '...' : statsData?.stats?.activeUsers || 0}
+          value={isStatsLoading ? '...' : statsData?.stats?.activeUsers ?? 0}
           icon="fas fa-users"
           iconBgColor="bg-discord-yellow"
-          iconColor="text-discord-yellow"
-          subtitle={statsData?.stats?.activeUsers > 0 ? `Across all servers` : 'No active users yet'}
+          iconColor="text-discord-white"
+          subtitle={statsData?.stats?.activeUsers && statsData.stats.activeUsers > 0 ? `Across all servers` : 'No active users yet'}
         />
         
         <StatsCard
           title="Uptime"
-          value={isStatsLoading ? '...' : statsData?.stats?.uptime || '0%'}
+          value={isStatsLoading ? '...' : statsData?.stats?.uptime ?? '0%'}
           icon="fas fa-chart-line"
           iconBgColor="bg-discord-red"
-          iconColor="text-discord-red"
-          subtitle={statsData?.stats?.uptime ? `Last restart: ${statsData?.stats?.uptime}` : 'Recently started'}
+          iconColor="text-discord-white"
+          subtitle={statsData?.stats?.uptime ? `Last restart: ${statsData.stats.uptime}` : 'Recently started'}
         />
       </div>
       
@@ -169,7 +189,7 @@ const Dashboard: React.FC = () => {
                     </tr>
                   ))
                 ) : statsData?.recentActivity && statsData.recentActivity.length > 0 ? (
-                  statsData.recentActivity.map((activity, index) => (
+                  statsData.recentActivity.map((activity: RecentActivity, index: number) => (
                     <tr key={index} className="hover:bg-discord-bg-tertiary">
                       <td className="px-4 py-2 text-sm">
                         <div className="flex items-center">
@@ -179,7 +199,10 @@ const Dashboard: React.FC = () => {
                       </td>
                       <td className="px-4 py-2 text-sm">{activity.user}</td>
                       <td className="px-4 py-2 text-sm">{activity.server}</td>
-                      <td className="px-4 py-2 text-sm text-discord-text-secondary">{formatTime(activity.time)}</td>
+                      <td className="px-4 py-2 text-sm text-discord-text-secondary">
+                        {formatTime(activity.time)}<br />
+                        <span className="text-xs">{dayjs(activity.time).tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm')}</span>
+                      </td>
                     </tr>
                   ))
                 ) : (

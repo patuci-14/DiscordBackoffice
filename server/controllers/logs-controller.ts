@@ -12,14 +12,22 @@ export const getLogs = async (req: Request, res: Response) => {
     }
     
     const { 
-      server, command, user, limit = 50, offset = 0 
+      server, command, user, limit = 50, offset = 0, botId 
     } = req.query;
+    
+    if (!botId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Bot ID is required' 
+      });
+    }
     
     let logs;
     
     if (server) {
       // Filter by server
       logs = await storage.getCommandLogsByServer(
+        botId as string,
         server as string, 
         Number(limit), 
         Number(offset)
@@ -27,6 +35,7 @@ export const getLogs = async (req: Request, res: Response) => {
     } else if (command) {
       // Filter by command
       logs = await storage.getCommandLogsByCommand(
+        botId as string,
         command as string, 
         Number(limit), 
         Number(offset)
@@ -34,6 +43,7 @@ export const getLogs = async (req: Request, res: Response) => {
     } else if (user) {
       // Filter by user
       logs = await storage.getCommandLogsByUser(
+        botId as string,
         user as string, 
         Number(limit), 
         Number(offset)
@@ -41,13 +51,14 @@ export const getLogs = async (req: Request, res: Response) => {
     } else {
       // Get all logs
       logs = await storage.getCommandLogs(
+        botId as string,
         Number(limit), 
         Number(offset)
       );
     }
     
     // Get total count for pagination
-    const totalLogs = (await storage.getCommandLogs()).length;
+    const totalLogs = (await storage.getCommandLogs(botId as string)).length;
     
     return res.status(200).json({
       success: true,

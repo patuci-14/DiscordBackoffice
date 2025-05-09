@@ -1,0 +1,9 @@
+{
+  "out": "./db/migrations",
+  "schema": "../shared/schema.ts",
+  "driver": "pg",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "connectionString": "postgresql://postgres:1406@localhost:5432/Discord"
+  }
+} 

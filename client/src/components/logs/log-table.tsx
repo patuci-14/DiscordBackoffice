@@ -1,7 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CommandLog } from '@shared/schema';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 interface LogTableProps {
   logs: CommandLog[];
@@ -15,31 +27,51 @@ interface LogTableProps {
 }
 
 const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPageChange }) => {
+  const [selectedLog, setSelectedLog] = useState<CommandLog | null>(null);
+
   // Function to format the date
-  const formatDate = (dateString: string | Date) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+  const formatDate = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return '-';
+    return dayjs(dateString).tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm:ss');
   };
   
   // Function to get the status badge class
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'success':
-        return 'bg-discord-green bg-opacity-20 text-discord-green';
+        return 'bg-discord-green bg-opacity-20 text-discord-white';
       case 'failed':
-        return 'bg-discord-red bg-opacity-20 text-discord-red';
+        return 'bg-discord-red bg-opacity-20 text-discord-white';
       case 'permission_denied':
-        return 'bg-discord-yellow bg-opacity-20 text-discord-yellow';
+        return 'bg-discord-yellow bg-opacity-20 text-discord-white';
       default:
-        return 'bg-discord-text-secondary bg-opacity-20 text-discord-text-secondary';
+        return 'bg-discord-text-secondary bg-opacity-20 text-discord-white';
     }
+  };
+
+  // Function to get the callback status badge class
+  const getCallbackStatusBadgeClass = (status: string | null | undefined) => {
+    if (!status) return 'bg-discord-text-secondary bg-opacity-20 text-discord-white';
+    switch (status) {
+      case 'success':
+        return 'bg-discord-green bg-opacity-20 text-discord-white';
+      case 'failed':
+        return 'bg-discord-red bg-opacity-20 text-discord-white';
+      case 'pending':
+        return 'bg-discord-yellow bg-opacity-20 text-discord-white';
+      default:
+        return 'bg-discord-text-secondary bg-opacity-20 text-discord-white';
+    }
+  };
+
+  // Function to format parameters
+  const formatParameters = (parameters: Record<string, any> | null | undefined) => {
+    if (!parameters || Object.keys(parameters).length === 0) {
+      return 'Nenhum parâmetro';
+    }
+    return Object.entries(parameters)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n');
   };
   
   // Calculate pagination
@@ -69,6 +101,8 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">User</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Command</th>
                 <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Status</th>
+                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Callback</th>
+                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Parâmetros</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
@@ -93,6 +127,9 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
                     <td className="px-4 py-3">
                       <div className="h-4 bg-discord-bg-tertiary rounded w-20"></div>
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 bg-discord-bg-tertiary rounded w-24"></div>
+                    </td>
                   </tr>
                 ))
               ) : logs.length > 0 ? (
@@ -111,11 +148,78 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
                          log.status}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm">
+                      {log.callbackStatus ? (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <span className={`px-2 py-0.5 ${getCallbackStatusBadgeClass(log.callbackStatus)} rounded-full text-xs cursor-pointer`}>
+                              {log.callbackStatus === 'success' ? 'Success' :
+                               log.callbackStatus === 'failed' ? 'Failed' :
+                               log.callbackStatus === 'pending' ? 'Pending' :
+                               log.callbackStatus}
+                            </span>
+                          </DialogTrigger>
+                          <DialogContent className="bg-discord-bg-secondary border border-gray-700">
+                            <DialogHeader>
+                              <DialogTitle className="text-discord-text-primary">Callback Details</DialogTitle>
+                            </DialogHeader>
+                            <div className="mt-4">
+                              <div className="space-y-2">
+                                <div>
+                                  <span className="text-discord-text-secondary">Status: </span>
+                                  <span className="text-discord-text-primary">{log.callbackStatus}</span>
+                                </div>
+                                {log.callbackTimestamp && (
+                                  <div>
+                                    <span className="text-discord-text-secondary">Timestamp: </span>
+                                    <span className="text-discord-text-primary">{formatDate(log.callbackTimestamp as Date)}</span>
+                                  </div>
+                                )}
+                                {log.callbackError && (
+                                  <div>
+                                    <span className="text-discord-text-secondary">Error: </span>
+                                    <pre className="mt-2 bg-discord-bg-tertiary p-4 rounded-lg whitespace-pre-wrap text-discord-text-primary border border-gray-700">
+                                      {log.callbackError}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      ) : (
+                        <span className="text-discord-text-secondary">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="bg-discord-bg-tertiary hover:bg-discord-bg-primary text-discord-text-secondary hover:text-discord-white px-3 py-1 text-sm"
+                            onClick={() => setSelectedLog(log)}
+                          >
+                            <i className="fas fa-eye mr-2"></i>
+                            Ver Parâmetros
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-discord-bg-secondary border border-gray-700">
+                          <DialogHeader>
+                            <DialogTitle className="text-discord-text-primary">Parâmetros do Comando</DialogTitle>
+                          </DialogHeader>
+                          <div className="mt-4">
+                            <pre className="bg-discord-bg-tertiary p-4 rounded-lg whitespace-pre-wrap text-discord-text-primary border border-gray-700">
+                              {formatParameters(log.parameters as Record<string, any>)}
+                            </pre>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-4 py-4 text-center text-discord-text-secondary">
+                  <td colSpan={7} className="px-4 py-4 text-center text-discord-text-secondary">
                     No logs found. Try adjusting your filters or run some commands to generate logs.
                   </td>
                 </tr>

@@ -28,23 +28,40 @@ export const authenticate = async (req: Request, res: Response) => {
       });
     }
     
-    // Save the token in the storage (securely on the server only)
-    let botConfig = await storage.getBotConfig();
-    
-    if (botConfig) {
-      botConfig = await storage.updateBotConfig({ token });
-    } else {
-      botConfig = await storage.createBotConfig({ token });
+    // Obtenha os dados do bot autenticado
+    const user = discordBot.getUser();
+    if (!user) {
+      return res.status(500).json({ success: false, error: 'Failed to get bot user after login' });
     }
     
-    // Return success but don't include the token in the response
+    // Atualize ou crie o botConfig com todos os dados relevantes
+    let botConfig = await storage.getBotConfig();
+    const botData = {
+      botId: user.id,
+      name: user.username,
+      avatarUrl: user.displayAvatarURL(),
+      token,
+      lastConnected: new Date(),
+    };
+    
+    if (botConfig) {
+      botConfig = await storage.updateBotConfig(botData);
+    } else {
+      botConfig = await storage.createBotConfig(botData);
+    }
+    
+    // Retorne os dados do bot (exceto o token)
     return res.status(200).json({
       success: true,
       bot: {
-        name: discordBot.getUser()?.username,
-        id: discordBot.getUser()?.id,
-        avatar: discordBot.getUser()?.displayAvatarURL({ size: 128 }),
-        isConnected: discordBot.isConnected()
+        id: user.id,
+        name: user.username,
+        avatar: user.displayAvatarURL({ size: 128 }),
+        isConnected: discordBot.isConnected(),
+      },
+      config: {
+        ...botConfig,
+        token: undefined, // nunca envie o token para o frontend
       }
     });
   } catch (error) {

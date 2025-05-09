@@ -1,3 +1,15 @@
+import * as dotenv from "dotenv";
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const rootDir = join(__dirname, '..');
+
+dotenv.config({ path: join(rootDir, '.env') });
+
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";

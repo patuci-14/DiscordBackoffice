@@ -8,7 +8,16 @@ import {
 // Bot API Functions
 export async function getBotInfo(): Promise<{ success: boolean; config?: BotConfig; error?: string }> {
   try {
-    const response = await apiRequest('GET', '/api/bot');
+    // Get botId from localStorage
+    const botId = localStorage.getItem('botId');
+    if (!botId) {
+      return { 
+        success: false, 
+        error: 'Bot ID not found' 
+      };
+    }
+
+    const response = await apiRequest('GET', `/api/bot?botId=${botId}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -36,7 +45,14 @@ export async function updateBotConfig(config: Partial<BotConfig>): Promise<{ suc
 
 export async function getServers(): Promise<{ success: boolean; servers?: Server[]; error?: string }> {
   try {
-    const response = await apiRequest('GET', '/api/bot/servers');
+    const botId = localStorage.getItem('botId');
+    if (!botId) {
+      return { 
+        success: false, 
+        error: 'Bot ID not found' 
+      };
+    }
+    const response = await apiRequest('GET', `/api/bot/servers?botId=${botId}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -64,7 +80,16 @@ export async function updateServer(id: number, update: Partial<Server>): Promise
 
 export async function getBotStats(): Promise<{ success: boolean; stats?: BotStat; recentActivity?: RecentActivity[]; error?: string }> {
   try {
-    const response = await apiRequest('GET', '/api/bot/stats');
+    // Get botId from localStorage
+    const botId = localStorage.getItem('botId');
+    if (!botId) {
+      return { 
+        success: false, 
+        error: 'Bot ID not found' 
+      };
+    }
+
+    const response = await apiRequest('GET', `/api/bot/stats?botId=${botId}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -79,7 +104,14 @@ export async function getBotStats(): Promise<{ success: boolean; stats?: BotStat
 // Commands API Functions
 export async function getCommands(): Promise<{ success: boolean; commands?: Command[]; error?: string }> {
   try {
-    const response = await apiRequest('GET', '/api/commands');
+    const botId = localStorage.getItem('botId');
+    if (!botId) {
+      return { 
+        success: false, 
+        error: 'Bot ID not found' 
+      };
+    }
+    const response = await apiRequest('GET', `/api/commands?botId=${botId}`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -156,12 +188,24 @@ export async function getLogs(params?: {
   offset?: number;
 }): Promise<{ success: boolean; logs?: CommandLog[]; pagination?: { total: number; limit: number; offset: number }; error?: string }> {
   try {
-    const queryString = params 
-      ? '?' + Object.entries(params)
-          .filter(([_, value]) => value !== undefined)
-          .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
-          .join('&')
-      : '';
+    // Get botId from localStorage
+    const botId = localStorage.getItem('botId');
+    if (!botId) {
+      return { 
+        success: false, 
+        error: 'Bot ID not found' 
+      };
+    }
+
+    const queryParams = {
+      ...params,
+      botId
+    };
+      
+    const queryString = '?' + Object.entries(queryParams)
+      .filter(([_, value]) => value !== undefined)
+      .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+      .join('&');
       
     const response = await apiRequest('GET', `/api/logs${queryString}`);
     const data = await response.json();

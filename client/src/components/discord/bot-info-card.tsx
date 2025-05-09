@@ -43,26 +43,6 @@ const BotInfoCard: React.FC<BotInfoCardProps> = ({ config, onEditClick }) => {
         )}
       </div>
       
-      <div className="border-t border-gray-700 pt-4 mt-2">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <p className="text-discord-text-secondary text-sm mb-1">Prefix</p>
-            <p className="font-medium">{config.prefix || '!'}</p>
-          </div>
-          <div>
-            <p className="text-discord-text-secondary text-sm mb-1">Status</p>
-            <p className="font-medium capitalize">{config.status || 'Online'}</p>
-          </div>
-          <div>
-            <p className="text-discord-text-secondary text-sm mb-1">Activity</p>
-            <p className="font-medium">
-              {config.activityType && config.activity 
-                ? `${config.activityType.toLowerCase()} ${config.activity}` 
-                : 'None'}
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

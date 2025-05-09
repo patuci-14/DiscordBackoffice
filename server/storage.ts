@@ -7,6 +7,7 @@ import {
   Plugin, InsertPlugin,
   BotStat, InsertBotStat
 } from "@shared/schema";
+import { DbStorage } from './db-storage';
 
 // Storage interface for all CRUD operations
 export interface IStorage {
@@ -16,12 +17,12 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
 
   // Bot configuration
-  getBotConfig(): Promise<BotConfig | undefined>;
+  getBotConfig(botId: string): Promise<BotConfig | undefined>;
   createBotConfig(config: InsertBotConfig): Promise<BotConfig>;
-  updateBotConfig(config: Partial<BotConfig>): Promise<BotConfig | undefined>;
+  updateBotConfig(botId: string, config: Partial<BotConfig>): Promise<BotConfig | undefined>;
   
   // Server management
-  getServers(): Promise<Server[]>;
+  getServers(botId: string): Promise<Server[]>;
   getServer(id: number): Promise<Server | undefined>;
   getServerByServerId(serverId: string): Promise<Server | undefined>;
   createServer(server: InsertServer): Promise<Server>;
@@ -29,19 +30,19 @@ export interface IStorage {
   deleteServer(id: number): Promise<boolean>;
 
   // Command management
-  getCommands(): Promise<Command[]>;
+  getCommands(botId: string): Promise<Command[]>;
   getCommand(id: number): Promise<Command | undefined>;
-  getCommandByName(name: string): Promise<Command | undefined>;
+  getCommandByName(botId: string, name: string): Promise<Command | undefined>;
   createCommand(command: InsertCommand): Promise<Command>;
   updateCommand(id: number, update: Partial<Command>): Promise<Command | undefined>;
   deleteCommand(id: number): Promise<boolean>;
   incrementCommandUsage(id: number): Promise<Command | undefined>;
 
   // Command logs
-  getCommandLogs(limit?: number, offset?: number): Promise<CommandLog[]>;
-  getCommandLogsByServer(serverId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
-  getCommandLogsByUser(userId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
-  getCommandLogsByCommand(commandName: string, limit?: number, offset?: number): Promise<CommandLog[]>;
+  getCommandLogs(botId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
+  getCommandLogsByServer(botId: string, serverId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
+  getCommandLogsByUser(botId: string, userId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
+  getCommandLogsByCommand(botId: string, commandName: string, limit?: number, offset?: number): Promise<CommandLog[]>;
   createCommandLog(log: InsertCommandLog): Promise<CommandLog>;
   
   // Plugin management
@@ -53,18 +54,18 @@ export interface IStorage {
   deletePlugin(id: number): Promise<boolean>;
 
   // Stats
-  getBotStats(): Promise<BotStat | undefined>;
+  getBotStats(botId: string): Promise<BotStat | undefined>;
   updateBotStats(stats: Partial<BotStat>): Promise<BotStat | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
-  private botConfig: BotConfig | undefined;
+  private botConfigs: Map<string, BotConfig>;
   private servers: Map<number, Server>;
   private commands: Map<number, Command>;
   private commandLogs: Map<number, CommandLog>;
   private plugins: Map<number, Plugin>;
-  private botStats: BotStat | undefined;
+  private botStats: Map<string, BotStat>;
   
   private currentUserId: number = 1;
   private currentServerId: number = 1;
@@ -75,14 +76,17 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.users = new Map();
+    this.botConfigs = new Map();
     this.servers = new Map();
     this.commands = new Map();
     this.commandLogs = new Map();
     this.plugins = new Map();
+    this.botStats = new Map();
     
     // Initialize with some built-in commands
     this.createCommand({
       name: "help",
+      botId: "default-bot",
       type: "text",
       response: "Displays help information for available commands.",
       requiredPermission: "everyone",
@@ -91,10 +95,14 @@ export class MemStorage implements IStorage {
       deleteUserMessage: false,
       logUsage: true,
       active: true,
+      options: {},
+      description: null,
+      webhookUrl: null
     });
     
     this.createCommand({
       name: "ping",
+      botId: "default-bot",
       type: "text",
       response: "Pong! Bot latency: {ping}ms",
       requiredPermission: "everyone",
@@ -103,54 +111,86 @@ export class MemStorage implements IStorage {
       deleteUserMessage: false,
       logUsage: true,
       active: true,
+      options: {},
+      description: null,
+      webhookUrl: null
     });
     
     // Initialize with some sample plugins
     this.createPlugin({
       name: "Music Player",
+      botId: "default-bot",
       version: "1.2.3",
       description: "Play music from YouTube, Spotify, and SoundCloud in voice channels.",
       author: "MusicDevs",
       enabled: true,
-      config: {},
+      config: {}
     });
     
     this.createPlugin({
       name: "Leveling System",
+      botId: "default-bot",
       version: "2.1.0",
       description: "Award XP and levels to members based on activity. Includes rank commands and leaderboards.",
       author: "RankMaster",
       enabled: true,
-      config: {},
+      config: {}
     });
     
     this.createPlugin({
       name: "Auto Moderation",
+      botId: "default-bot",
       version: "3.0.2",
       description: "Automatically moderate chat messages for spam, bad language, and raid protection.",
       author: "SecurityTeam",
       enabled: false,
-      config: {},
+      config: {}
     });
     
     this.createPlugin({
       name: "Event Scheduler",
+      botId: "default-bot",
       version: "1.0.5",
       description: "Create and manage server events with reminders, sign-ups, and calendar integration.",
       author: "EventManagers",
       enabled: true,
-      config: {},
+      config: {}
     });
     
-    // Initialize stats
-    this.botStats = {
+    // Initialize default bot config
+    this.botConfigs.set("default-bot", {
+      id: 1,
+      botId: "default-bot",
+      name: "Discord Bot",
+      prefix: "!",
+      status: "online",
+      activityType: "PLAYING",
+      activity: "with commands",
+      useSlashCommands: true,
+      logCommandUsage: true,
+      respondToMentions: true,
+      deleteCommandMessages: false,
+      enableWelcomeMessages: true,
+      enableGoodbyeMessages: true,
+      enableAutoRole: false,
+      enableLogging: true,
+      enableAntiSpam: true,
+      enableAutoMod: true,
+      token: "default-token",
+      avatarUrl: null,
+      lastConnected: new Date()
+    });
+    
+    // Initialize default bot stats
+    this.botStats.set("default-bot", {
       id: this.currentBotStatsId++,
+      botId: "default-bot",
       serverCount: 0,
       commandsUsed: 0,
       activeUsers: 0,
       uptime: "0%",
       lastUpdate: new Date(),
-    };
+    });
   }
 
   // User management
@@ -172,8 +212,8 @@ export class MemStorage implements IStorage {
   }
 
   // Bot configuration
-  async getBotConfig(): Promise<BotConfig | undefined> {
-    return this.botConfig;
+  async getBotConfig(botId: string): Promise<BotConfig | undefined> {
+    return this.botConfigs.get(botId);
   }
 
   async createBotConfig(config: InsertBotConfig): Promise<BotConfig> {
@@ -183,32 +223,43 @@ export class MemStorage implements IStorage {
       activity: config.activity || null,
       status: config.status || null,
       token: config.token,
-      botId: config.botId || null,
+      botId: config.botId || "default-bot",
       prefix: config.prefix || null,
       activityType: config.activityType || null,
       avatarUrl: config.avatarUrl || null,
-      useSlashCommands: config.useSlashCommands || false,
-      lastConnected: new Date()
+      useSlashCommands: config.useSlashCommands ?? true,
+      lastConnected: new Date(),
+      logCommandUsage: config.logCommandUsage ?? true,
+      respondToMentions: config.respondToMentions ?? true,
+      deleteCommandMessages: config.deleteCommandMessages ?? false,
+      enableWelcomeMessages: config.enableWelcomeMessages ?? true,
+      enableGoodbyeMessages: config.enableGoodbyeMessages ?? true,
+      enableAutoRole: config.enableAutoRole ?? false,
+      enableLogging: config.enableLogging ?? true,
+      enableAntiSpam: config.enableAntiSpam ?? true,
+      enableAutoMod: config.enableAutoMod ?? true,
     };
-    this.botConfig = newConfig;
+    this.botConfigs.set(config.botId || "default-bot", newConfig);
     return newConfig;
   }
 
-  async updateBotConfig(config: Partial<BotConfig>): Promise<BotConfig | undefined> {
-    if (!this.botConfig) return undefined;
+  async updateBotConfig(botId: string, config: Partial<BotConfig>): Promise<BotConfig | undefined> {
+    const currentConfig = await this.getBotConfig(botId);
+    if (!currentConfig) return undefined;
     
-    this.botConfig = {
-      ...this.botConfig,
+    const updatedConfig = {
+      ...currentConfig,
       ...config,
-      lastConnected: new Date()
+      botId
     };
     
-    return this.botConfig;
+    this.botConfigs.set(botId, updatedConfig);
+    return updatedConfig;
   }
 
   // Server management
-  async getServers(): Promise<Server[]> {
-    return Array.from(this.servers.values());
+  async getServers(botId: string): Promise<Server[]> {
+    return Array.from(this.servers.values()).filter(server => server.botId === botId);
   }
 
   async getServer(id: number): Promise<Server | undefined> {
@@ -223,11 +274,11 @@ export class MemStorage implements IStorage {
 
   async createServer(server: InsertServer): Promise<Server> {
     const id = this.currentServerId++;
-    const newServer: Server = { ...server, id };
+    const newServer: Server = { ...server, id, iconUrl: server.iconUrl ?? null, enabled: server.enabled ?? true, memberCount: server.memberCount ?? null };
     this.servers.set(id, newServer);
     
     // Update server count in stats
-    if (this.botStats) {
+    if (this.botStats.has("default-bot")) {
       await this.updateBotStats({ serverCount: this.servers.size });
     }
     
@@ -247,7 +298,7 @@ export class MemStorage implements IStorage {
     const deleted = this.servers.delete(id);
     
     // Update server count in stats
-    if (deleted && this.botStats) {
+    if (deleted && this.botStats.has("default-bot")) {
       await this.updateBotStats({ serverCount: this.servers.size });
     }
     
@@ -255,17 +306,17 @@ export class MemStorage implements IStorage {
   }
 
   // Command management
-  async getCommands(): Promise<Command[]> {
-    return Array.from(this.commands.values());
+  async getCommands(botId: string): Promise<Command[]> {
+    return Array.from(this.commands.values()).filter(cmd => cmd.botId === botId);
   }
 
   async getCommand(id: number): Promise<Command | undefined> {
     return this.commands.get(id);
   }
 
-  async getCommandByName(name: string): Promise<Command | undefined> {
+  async getCommandByName(botId: string, name: string): Promise<Command | undefined> {
     return Array.from(this.commands.values()).find(
-      (command) => command.name === name
+      (command) => command.botId === botId && command.name === name
     );
   }
 
@@ -275,7 +326,16 @@ export class MemStorage implements IStorage {
       ...command, 
       id,
       usageCount: 0,
-      webhookUrl: command.webhookUrl || null
+      webhookUrl: command.webhookUrl || null,
+      options: command.options || {},
+      description: command.description ?? null,
+      requiredPermission: command.requiredPermission ?? null,
+      cooldown: command.cooldown ?? null,
+      enabledForAllServers: command.enabledForAllServers ?? true,
+      deleteUserMessage: command.deleteUserMessage ?? false,
+      logUsage: command.logUsage ?? true,
+      active: command.active ?? true,
+      type: command.type ?? "text"
     };
     this.commands.set(id, newCommand);
     return newCommand;
@@ -305,9 +365,9 @@ export class MemStorage implements IStorage {
     this.commands.set(id, updatedCommand);
     
     // Update commands used in stats
-    if (this.botStats) {
+    if (this.botStats.has("default-bot")) {
       await this.updateBotStats({ 
-        commandsUsed: (this.botStats.commandsUsed || 0) + 1 
+        commandsUsed: (this.botStats.get("default-bot")?.commandsUsed || 0) + 1 
       });
     }
     
@@ -315,37 +375,46 @@ export class MemStorage implements IStorage {
   }
 
   // Command logs
-  async getCommandLogs(limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
+  async getCommandLogs(botId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return Array.from(this.commandLogs.values())
+      .filter(log => log.botId === botId)
       .sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        const ta = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        const tb = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        return ta - tb;
       })
       .slice(offset, offset + limit);
   }
 
-  async getCommandLogsByServer(serverId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
+  async getCommandLogsByServer(botId: string, serverId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return Array.from(this.commandLogs.values())
-      .filter(log => log.serverId === serverId)
+      .filter(log => log.botId === botId && log.serverId === serverId)
       .sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        const ta = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        const tb = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        return ta - tb;
       })
       .slice(offset, offset + limit);
   }
 
-  async getCommandLogsByUser(userId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
+  async getCommandLogsByUser(botId: string, userId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return Array.from(this.commandLogs.values())
-      .filter(log => log.userId === userId)
+      .filter(log => log.botId === botId && log.userId === userId)
       .sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        const ta = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        const tb = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        return ta - tb;
       })
       .slice(offset, offset + limit);
   }
 
-  async getCommandLogsByCommand(commandName: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
+  async getCommandLogsByCommand(botId: string, commandName: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return Array.from(this.commandLogs.values())
-      .filter(log => log.commandName === commandName)
+      .filter(log => log.botId === botId && log.commandName === commandName)
       .sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        const ta = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        const tb = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        return ta - tb;
       })
       .slice(offset, offset + limit);
   }
@@ -355,7 +424,12 @@ export class MemStorage implements IStorage {
     const newLog: CommandLog = { 
       ...log, 
       id,
-      timestamp: new Date()
+      timestamp: new Date(),
+      status: log.status ?? null,
+      parameters: log.parameters ?? {},
+      callbackStatus: log.callbackStatus ?? null,
+      callbackError: log.callbackError ?? null,
+      callbackTimestamp: log.callbackTimestamp ?? null
     };
     this.commandLogs.set(id, newLog);
     
@@ -388,7 +462,14 @@ export class MemStorage implements IStorage {
 
   async createPlugin(plugin: InsertPlugin): Promise<Plugin> {
     const id = this.currentPluginId++;
-    const newPlugin: Plugin = { ...plugin, id };
+    const newPlugin: Plugin = { 
+      ...plugin, 
+      id,
+      enabled: plugin.enabled ?? true,
+      description: plugin.description ?? null,
+      author: plugin.author ?? null,
+      config: plugin.config || {}
+    };
     this.plugins.set(id, newPlugin);
     return newPlugin;
   }
@@ -407,21 +488,37 @@ export class MemStorage implements IStorage {
   }
 
   // Stats
-  async getBotStats(): Promise<BotStat | undefined> {
-    return this.botStats;
+  async getBotStats(botId: string): Promise<BotStat | undefined> {
+    return this.botStats.get(botId);
   }
 
   async updateBotStats(stats: Partial<BotStat>): Promise<BotStat | undefined> {
-    if (!this.botStats) return undefined;
+    if (!stats.botId) return undefined;
     
-    this.botStats = {
-      ...this.botStats,
+    const currentStats = await this.getBotStats(stats.botId);
+    if (!currentStats) {
+      const newStats: BotStat = {
+        id: this.currentBotStatsId++,
+        botId: stats.botId,
+        serverCount: stats.serverCount || 0,
+        commandsUsed: stats.commandsUsed || 0,
+        activeUsers: stats.activeUsers || 0,
+        uptime: stats.uptime || "0%",
+        lastUpdate: new Date()
+      };
+      this.botStats.set(stats.botId, newStats);
+      return newStats;
+    }
+    
+    const updatedStats = {
+      ...currentStats,
       ...stats,
       lastUpdate: new Date()
     };
     
-    return this.botStats;
+    this.botStats.set(stats.botId, updatedStats);
+    return updatedStats;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DbStorage();

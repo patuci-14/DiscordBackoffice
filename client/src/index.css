@@ -88,6 +88,10 @@
   color: hsl(142, 71%, 45%);
 }
 
+.text-discord-white {
+  color: white;
+}
+
 .text-discord-red {
   color: hsl(0, 84.2%, 60.2%);
 }

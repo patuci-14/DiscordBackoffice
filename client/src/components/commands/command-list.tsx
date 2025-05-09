@@ -37,13 +37,13 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
   const getTypeBadgeClass = (type: string) => {
     switch (type) {
       case 'text':
-        return 'bg-discord-blurple bg-opacity-20 text-discord-blurple';
+        return 'bg-discord-blurple bg-opacity-20';
       case 'slash':
-        return 'bg-discord-green bg-opacity-20 text-discord-green';
+        return 'bg-discord-green bg-opacity-20';
       case 'embed':
-        return 'bg-discord-yellow bg-opacity-20 text-discord-yellow';
+        return 'bg-discord-yellow bg-opacity-20';
       default:
-        return 'bg-discord-blurple bg-opacity-20 text-discord-blurple';
+        return 'bg-discord-blurple bg-opacity-20';
     }
   };
 

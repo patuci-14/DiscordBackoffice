@@ -1,9 +1,14 @@
 import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder, 
   ApplicationCommandType, ApplicationCommandOptionType, REST, Routes, Interaction, 
-  ChatInputCommandInteraction } from 'discord.js';
+  ChatInputCommandInteraction, TextChannel, DMChannel, VoiceChannel, Channel, BaseGuildTextChannel,
+  GuildMember, PartialGuildMember, GuildBasedChannel } from 'discord.js';
 import axios from 'axios';
 import { storage } from './storage';
 import { BotConfig, Server, InsertServer, Command, InsertCommandLog } from '@shared/schema';
+import { handleMemberJoin, handleMemberLeave } from './features/welcome-messages';
+import { handleMessage as handleAutoMod } from './features/auto-moderation';
+import { handleMessageDelete, handleMemberUpdate } from './features/logging';
+import { eq } from 'drizzle-orm';
 
 class DiscordBot {
   private client: Client;
@@ -11,7 +16,15 @@ class DiscordBot {
   private commands: Collection<string, Command> = new Collection();
   private startTime: Date | null = null;
   
-  constructor() {
+  private getChannelName(channel: Channel | null): string {
+    if (!channel) return 'unknown';
+    if (channel instanceof BaseGuildTextChannel) return channel.name;
+    if ('isDMBased' in channel && channel.isDMBased()) return 'DM';
+    if ('name' in channel && typeof channel.name === 'string') return channel.name;
+    return 'unknown';
+  }
+  
+  private initializeClient() {
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
@@ -26,8 +39,11 @@ class DiscordBot {
         Partials.GuildMember,
       ],
     });
-    
     this.setupEventHandlers();
+  }
+  
+  constructor() {
+    this.initializeClient();
   }
   
   private setupEventHandlers() {
@@ -37,12 +53,33 @@ class DiscordBot {
       
       // Update the bot config with the bot user information
       if (this.client.user) {
-        const botConfig = await storage.getBotConfig();
+        const botId = this.client.user.id;
+        let botConfig = await storage.getBotConfig(botId);
         if (botConfig) {
-          await storage.updateBotConfig({
+          await storage.updateBotConfig(botId, {
             name: this.client.user.username,
-            botId: this.client.user.id,
             avatarUrl: this.client.user.displayAvatarURL(),
+          });
+        } else {
+          await storage.createBotConfig({
+            botId,
+            name: this.client.user.username,
+            avatarUrl: this.client.user.displayAvatarURL(),
+            token: this.token || '',
+            prefix: '!',
+            status: 'online',
+            activity: '',
+            activityType: 'PLAYING',
+            useSlashCommands: true,
+            logCommandUsage: true,
+            respondToMentions: true,
+            deleteCommandMessages: false,
+            enableWelcomeMessages: true,
+            enableGoodbyeMessages: true,
+            enableAutoRole: false,
+            enableLogging: true,
+            enableAntiSpam: true,
+            enableAutoMod: true,
           });
         }
       }
@@ -71,7 +108,7 @@ class DiscordBot {
       // Ignore messages from bots and non-text channels
       if (message.author.bot || !message.guild) return;
       
-      const botConfig = await storage.getBotConfig();
+      const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
       if (!botConfig) return;
       
       const prefix = botConfig.prefix || '!';
@@ -114,16 +151,20 @@ class DiscordBot {
         
         if (!hasPermission) {
           // Log permission denied
-          await storage.createCommandLog({
-            serverId: message.guild.id,
-            serverName: message.guild.name,
-            channelId: message.channel.id,
-            channelName: message.channel.name,
-            userId: message.author.id,
-            username: message.author.tag,
-            commandName: command.name,
-            status: 'permission_denied'
-          });
+          await this.createCommandLogEntry(
+            message.guild.id,
+            message.guild.name,
+            message.channel.id,
+            this.getChannelName(message.channel),
+            message.author.id,
+            message.author.tag,
+            command.name,
+            'permission_denied',
+            {},
+            undefined,
+            undefined,
+            new Date()
+          );
           
           return message.reply('You do not have permission to use this command.');
         }
@@ -172,7 +213,7 @@ class DiscordBot {
               },
               channel: {
                 id: message.channel.id,
-                name: message.channel.name
+                name: this.getChannelName(message.channel)
               },
               message: {
                 content: message.content,
@@ -195,13 +236,57 @@ class DiscordBot {
             
             if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
               console.log(`Webhook triggered successfully for command ${command.name}`);
+              // Update command log with callback success
+              await this.createCommandLogEntry(
+                message.guild.id,
+                message.guild.name,
+                message.channel.id,
+                this.getChannelName(message.channel),
+                message.author.id,
+                message.author.tag,
+                command.name,
+                'success',
+                {},
+                'success',
+                undefined,
+                new Date()
+              );
             } else {
               console.warn(`Webhook for command ${command.name} returned status: ${webhookResponse.status}`);
+              // Update command log with callback failure
+              await this.createCommandLogEntry(
+                message.guild.id,
+                message.guild.name,
+                message.channel.id,
+                this.getChannelName(message.channel),
+                message.author.id,
+                message.author.tag,
+                command.name,
+                'success',
+                {},
+                'failed',
+                `HTTP ${webhookResponse.status}`,
+                new Date()
+              );
             }
           } catch (error) {
             const webhookError = error instanceof Error ? error : new Error('Unknown error');
             console.error(`Error sending webhook for command ${command.name}:`, webhookError.message);
-            // Continue execution - webhook errors shouldn't affect the user experience
+            // Update command log with callback error
+            await this.createCommandLogEntry(
+              message.guild.id,
+              message.guild.name,
+              message.channel.id,
+              this.getChannelName(message.channel),
+              message.author.id,
+              message.author.tag,
+              command.name,
+              'success',
+              {},
+              'failed',
+              webhookError.message,
+              new Date()
+            );
           }
         } else if (command.webhookUrl) {
           console.warn(`Invalid webhook URL format for command ${command.name}: ${command.webhookUrl}`);
@@ -215,32 +300,38 @@ class DiscordBot {
         }
         
         // Log command usage
-        if (command.logUsage) {
-          await storage.createCommandLog({
-            serverId: message.guild.id,
-            serverName: message.guild.name,
-            channelId: message.channel.id,
-            channelName: message.channel.name,
-            userId: message.author.id,
-            username: message.author.tag,
-            commandName: command.name,
-            status: 'success'
-          });
-        }
+        await this.createCommandLogEntry(
+          message.guild.id,
+          message.guild.name,
+          message.channel.id,
+          this.getChannelName(message.channel),
+          message.author.id,
+          message.author.tag,
+          command.name,
+          'success',
+          {},
+          undefined,
+          undefined,
+          new Date()
+        );
       } catch (error) {
         console.error(`Error executing command ${command.name}:`, error);
         
         // Log command failure
-        await storage.createCommandLog({
-          serverId: message.guild.id,
-          serverName: message.guild.name,
-          channelId: message.channel.id,
-          channelName: message.channel.name,
-          userId: message.author.id,
-          username: message.author.tag,
-          commandName: command.name,
-          status: 'failed'
-        });
+        await this.createCommandLogEntry(
+          message.guild.id,
+          message.guild.name,
+          message.channel.id,
+          this.getChannelName(message.channel),
+          message.author.id,
+          message.author.tag,
+          command.name,
+          'failed',
+          {},
+          undefined,
+          undefined,
+          new Date()
+        );
         
         message.reply('There was an error executing that command.');
       }
@@ -257,6 +348,48 @@ class DiscordBot {
       if (server) {
         await storage.deleteServer(server.id);
       }
+    });
+
+    // Eventos de membros
+    this.client.on(Events.GuildMemberAdd, async (member: GuildMember) => {
+      await handleMemberJoin(member);
+    });
+
+    this.client.on(Events.GuildMemberRemove, async (member: GuildMember | PartialGuildMember) => {
+      if (member instanceof GuildMember) {
+        await handleMemberLeave(member);
+      }
+    });
+
+    this.client.on(Events.GuildMemberUpdate, async (oldMember: GuildMember | PartialGuildMember, newMember: GuildMember | PartialGuildMember) => {
+      if (oldMember instanceof GuildMember && newMember instanceof GuildMember) {
+        await handleMemberUpdate(oldMember, newMember);
+      }
+    });
+
+    // Eventos de mensagens
+    this.client.on(Events.MessageCreate, async (message) => {
+      // Ignorar mensagens de bots
+      if (message.author.bot) return;
+
+      // Verificar menções ao bot
+      const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
+      if (botConfig?.respondToMentions && message.mentions.has(this.client.user!)) {
+        await message.reply('Olá! Como posso ajudar?');
+      }
+
+      // Auto-moderação
+      await handleAutoMod(message);
+
+      // Processar comandos
+      if (message.content.startsWith(botConfig?.prefix || '!')) {
+        // ... existing command handling code ...
+      }
+    });
+
+    this.client.on(Events.MessageDelete, async (message) => {
+      if (message.partial) return;
+      await handleMessageDelete(message);
     });
   }
   
@@ -276,6 +409,7 @@ class DiscordBot {
       this.client.destroy();
       this.token = null;
       this.startTime = null;
+      this.initializeClient(); // reinicializa o client
     }
   }
   
@@ -322,17 +456,18 @@ class DiscordBot {
     if (!this.client.isReady()) return;
     
     // Get all servers from Discord
-    const discordServers = this.client.guilds.cache;
+    const discordServers = Array.from(this.client.guilds.cache.values());
     
     // Update server count in stats
     await storage.updateBotStats({ 
-      serverCount: discordServers.size,
+      botId: this.client.user?.id || "unknown",
+      serverCount: discordServers.length,
       activeUsers: discordServers.reduce((acc, guild) => acc + guild.memberCount, 0)
     });
     
     // Add all servers to database
-    for (const [id, guild] of discordServers) {
-      await this.addServer(id, guild.name, guild.iconURL() || undefined, guild.memberCount);
+    for (const guild of discordServers) {
+      await this.addServer(guild.id, guild.name, guild.iconURL() || undefined, guild.memberCount);
     }
   }
   
@@ -350,6 +485,7 @@ class DiscordBot {
     } else {
       // Add new server
       await storage.createServer({
+        botId: this.client.user?.id || "unknown",
         serverId: id,
         name,
         iconUrl,
@@ -362,7 +498,7 @@ class DiscordBot {
   private async updateBotStatus() {
     if (!this.client.isReady()) return;
     
-    const botConfig = await storage.getBotConfig();
+    const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
     if (!botConfig) return;
     
     // Set status
@@ -394,7 +530,12 @@ class DiscordBot {
   
   private async loadCommands() {
     // Load commands from database
-    const dbCommands = await storage.getCommands();
+    const botId = this.client.user?.id;
+    if (!botId) {
+      console.error('loadCommands: botId indefinido!');
+      return;
+    }
+    const dbCommands = await storage.getCommands(botId);
     
     // Clear current commands
     this.commands.clear();
@@ -404,19 +545,34 @@ class DiscordBot {
       this.commands.set(command.name, command);
     }
     
-    console.log(`Loaded ${this.commands.size} commands.`);
+    console.log(`Loaded ${this.commands.size} commands for botId ${botId}.`);
   }
   
   public async reloadCommands() {
     await this.loadCommands();
+    
+    // Clear existing commands before registering new ones
+    if (this.client.isReady() && this.client.user && this.token) {
+      try {
+        const rest = new REST({ version: '10' }).setToken(this.token);
+        await rest.put(
+          Routes.applicationCommands(this.client.user.id),
+          { body: [] }
+        );
+        console.log('Cleared existing slash commands');
+      } catch (error) {
+        console.error('Error clearing slash commands:', error);
+      }
+    }
+    
     await this.registerSlashCommands();
   }
   
   public async updateStatus(status: string, activity?: string, activityType?: string) {
-    const botConfig = await storage.getBotConfig();
+    const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
     if (!botConfig) return;
     
-    await storage.updateBotConfig({
+    await storage.updateBotConfig(this.client.user?.id || 'unknown', {
       status,
       activity,
       activityType
@@ -434,7 +590,7 @@ class DiscordBot {
     try {
       console.log('Registering slash commands...');
       
-      const botConfig = await storage.getBotConfig();
+      const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
       if (!botConfig || !botConfig.useSlashCommands) {
         console.log('Slash commands are disabled in config.');
         return;
@@ -452,7 +608,7 @@ class DiscordBot {
       
       console.log(`Found ${commands.length} active slash commands to register.`);
       
-      // Create the REST API instance
+      // Create the REST API instance with non-null token
       const rest = new REST({ version: '10' }).setToken(this.token);
       
       // Format commands for registration with detailed logging
@@ -565,16 +721,19 @@ class DiscordBot {
       
       if (!hasPermission) {
         // Log permission denied
-        await storage.createCommandLog({
-          serverId: interaction.guild.id,
-          serverName: interaction.guild.name,
-          channelId: interaction.channel?.id || '0',
-          channelName: interaction.channel?.name || 'unknown',
-          userId: interaction.user.id,
-          username: interaction.user.tag,
-          commandName: command.name,
-          status: 'permission_denied'
-        });
+        await this.createCommandLogEntry(
+          interaction.guild.id,
+          interaction.guild.name,
+          interaction.channel?.id || '0',
+          this.getChannelName(interaction.channel),
+          interaction.user.id,
+          interaction.user.tag,
+          command.name,
+          'permission_denied',
+          undefined,
+          undefined,
+          new Date()
+        );
         
         return interaction.reply({ 
           content: 'You do not have permission to use this command.', 
@@ -663,13 +822,18 @@ class DiscordBot {
             },
             channel: {
               id: interaction.channel?.id || '0',
-              name: interaction.channel?.name || 'unknown'
+              name: this.getChannelName(interaction.channel)
             },
             interaction: {
               id: interaction.id,
               timestamp: interaction.createdAt
             },
-            timestamp: new Date()
+            timestamp: new Date(),
+            parameters: interaction.options.data.reduce((acc, option) => {
+              acc[option.name] = option.value;
+              return acc;
+            }, {} as Record<string, any>),
+            botId: this.client.user?.id || 'unknown'
           };
           
           // Add option values to the webhook payload
@@ -692,29 +856,93 @@ class DiscordBot {
           
           if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
             console.log(`Webhook triggered successfully for command ${command.name}`);
+            // Update command log with callback success
+            await storage.createCommandLog({
+              botId: this.client.user?.id || 'unknown',
+              serverId: interaction.guild.id,
+              serverName: interaction.guild.name,
+              channelId: interaction.channel?.id ?? '0',
+              channelName: this.getChannelName(interaction.channel),
+              userId: interaction.user.id,
+              username: interaction.user.tag,
+              commandName: command.name,
+              status: 'success',
+              timestamp: new Date(),
+              parameters: interaction.options.data.reduce((acc, option) => {
+                acc[option.name] = option.value;
+                return acc;
+              }, {} as Record<string, any>),
+              callbackStatus: 'success',
+              callbackTimestamp: new Date()
+            });
           } else {
             console.warn(`Webhook for command ${command.name} returned status: ${webhookResponse.status}`);
+            // Update command log with callback failure
+            await storage.createCommandLog({
+              botId: this.client.user?.id || 'unknown',
+              serverId: interaction.guild.id,
+              serverName: interaction.guild.name,
+              channelId: interaction.channel?.id ?? '0',
+              channelName: this.getChannelName(interaction.channel),
+              userId: interaction.user.id,
+              username: interaction.user.tag,
+              commandName: command.name,
+              status: 'success',
+              timestamp: new Date(),
+              parameters: interaction.options.data.reduce((acc, option) => {
+                acc[option.name] = option.value;
+                return acc;
+              }, {} as Record<string, any>),
+              callbackStatus: 'failed',
+              callbackError: `HTTP ${webhookResponse.status}`,
+              callbackTimestamp: new Date()
+            });
           }
         } catch (error) {
-          const webhookError = error as Error;
-          console.error(`Error sending webhook for command ${command.name}:`, webhookError.message || 'Unknown error');
-          // Continue execution - webhook errors shouldn't affect the user experience
+          const webhookError = error instanceof Error ? error : new Error('Unknown error');
+          console.error(`Error sending webhook for command ${command.name}:`, webhookError.message);
+          // Update command log with callback error
+          await storage.createCommandLog({
+            botId: this.client.user?.id || 'unknown',
+            serverId: interaction.guild.id,
+            serverName: interaction.guild.name,
+            channelId: interaction.channel?.id ?? '0',
+            channelName: this.getChannelName(interaction.channel),
+            userId: interaction.user.id,
+            username: interaction.user.tag,
+            commandName: command.name,
+            status: 'success',
+            timestamp: new Date(),
+            parameters: interaction.options.data.reduce((acc, option) => {
+              acc[option.name] = option.value;
+              return acc;
+            }, {} as Record<string, any>),
+            callbackStatus: 'failed',
+            callbackError: webhookError.message,
+            callbackTimestamp: new Date()
+          });
         }
       } else if (command.webhookUrl) {
         console.warn(`Invalid webhook URL format for command ${command.name}: ${command.webhookUrl}`);
       }
       
-      // Log command usage
-      if (command.logUsage) {
+      // Se o comando NÃO tem webhook, registrar o log normalmente
+      if (!command.webhookUrl) {
         await storage.createCommandLog({
+          botId: this.client.user?.id || 'unknown',
           serverId: interaction.guild.id,
           serverName: interaction.guild.name,
-          channelId: interaction.channel?.id || '0',
-          channelName: interaction.channel?.name || 'unknown',
+          channelId: interaction.channel?.id ?? '0',
+          channelName: this.getChannelName(interaction.channel),
           userId: interaction.user.id,
           username: interaction.user.tag,
           commandName: command.name,
-          status: 'success'
+          status: 'success',
+          timestamp: new Date(),
+          parameters: interaction.options.data.reduce((acc, option) => {
+            acc[option.name] = option.value;
+            return acc;
+          }, {} as Record<string, any>)
         });
       }
     } catch (error) {
@@ -722,21 +950,24 @@ class DiscordBot {
       
       // If deferred, edit reply, otherwise send new reply
       const replyMethod = interaction.deferred ? interaction.editReply : interaction.reply;
-      await replyMethod.call(interaction, { 
+      await replyMethod({ 
         content: 'There was an error executing that command.', 
         ephemeral: true 
       });
       
       // Log command failure
       await storage.createCommandLog({
+        botId: this.client.user?.id || 'unknown',
         serverId: interaction.guild.id,
         serverName: interaction.guild.name,
-        channelId: interaction.channel?.id || '0',
-        channelName: interaction.channel?.name || 'unknown',
+        channelId: interaction.channel?.id ?? '0',
+        channelName: this.getChannelName(interaction.channel),
         userId: interaction.user.id,
         username: interaction.user.tag,
         commandName: command.name,
-        status: 'failed'
+        status: 'failed',
+        timestamp: new Date(),
+        parameters: {}
       });
     }
   }
@@ -760,6 +991,38 @@ class DiscordBot {
     };
     
     return ApplicationCommandOptionType[type as keyof typeof ApplicationCommandOptionType] || 3; // Default to STRING
+  }
+
+  private async createCommandLogEntry(
+    serverId: string,
+    serverName: string,
+    channelId: string,
+    channelName: string,
+    userId: string,
+    username: string,
+    commandName: string,
+    status: 'success' | 'failed' | 'permission_denied',
+    parameters: Record<string, any> = {},
+    callbackStatus?: string,
+    callbackError?: string,
+    callbackTimestamp?: Date
+  ): Promise<void> {
+    await storage.createCommandLog({
+      botId: this.client.user?.id || 'unknown',
+      serverId,
+      serverName,
+      channelId,
+      channelName,
+      userId,
+      username,
+      commandName,
+      status,
+      timestamp: new Date(),
+      parameters,
+      callbackStatus,
+      callbackError,
+      callbackTimestamp
+    });
   }
 }
 

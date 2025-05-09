@@ -17,9 +17,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
 // Discord Bot Configuration
 export const botConfigs = pgTable("bot_configs", {
   id: serial("id").primaryKey(),
+  botId: text("bot_id").notNull(),
   token: text("token").notNull(),
   name: text("name"),
-  botId: text("bot_id"),
   prefix: text("prefix").default("!"),
   status: text("status").default("online"),
   activity: text("activity"),
@@ -27,23 +27,42 @@ export const botConfigs = pgTable("bot_configs", {
   avatarUrl: text("avatar_url"),
   useSlashCommands: boolean("use_slash_commands").default(true),
   lastConnected: timestamp("last_connected"),
+  logCommandUsage: boolean("log_command_usage").default(true),
+  respondToMentions: boolean("respond_to_mentions").default(true),
+  deleteCommandMessages: boolean("delete_command_messages").default(false),
+  enableWelcomeMessages: boolean("enable_welcome_messages").default(true),
+  enableGoodbyeMessages: boolean("enable_goodbye_messages").default(true),
+  enableAutoRole: boolean("enable_auto_role").default(false),
+  enableLogging: boolean("enable_logging").default(true),
+  enableAntiSpam: boolean("enable_anti_spam").default(true),
+  enableAutoMod: boolean("enable_auto_mod").default(true),
 });
 
 export const insertBotConfigSchema = createInsertSchema(botConfigs).pick({
+  botId: true,
   token: true,
   name: true,
-  botId: true,
   prefix: true,
   status: true,
   activity: true,
   activityType: true,
   avatarUrl: true,
   useSlashCommands: true,
+  logCommandUsage: true,
+  respondToMentions: true,
+  deleteCommandMessages: true,
+  enableWelcomeMessages: true,
+  enableGoodbyeMessages: true,
+  enableAutoRole: true,
+  enableLogging: true,
+  enableAntiSpam: true,
+  enableAutoMod: true,
 });
 
 // Server model for Discord servers where the bot is present
 export const servers = pgTable("servers", {
   id: serial("id").primaryKey(),
+  botId: text("bot_id").notNull(),
   serverId: text("server_id").notNull().unique(),
   name: text("name").notNull(),
   iconUrl: text("icon_url"),
@@ -52,6 +71,7 @@ export const servers = pgTable("servers", {
 });
 
 export const insertServerSchema = createInsertSchema(servers).pick({
+  botId: true,
   serverId: true,
   name: true,
   iconUrl: true,
@@ -62,6 +82,7 @@ export const insertServerSchema = createInsertSchema(servers).pick({
 // Custom Commands
 export const commands = pgTable("commands", {
   id: serial("id").primaryKey(),
+  botId: text("bot_id").notNull(),
   name: text("name").notNull(),
   type: text("type").notNull().default("text"), // text, slash, embed
   description: text("description"), // Used for slash command descriptions
@@ -78,6 +99,7 @@ export const commands = pgTable("commands", {
 });
 
 export const insertCommandSchema = createInsertSchema(commands).pick({
+  botId: true,
   name: true,
   type: true,
   description: true,
@@ -95,6 +117,7 @@ export const insertCommandSchema = createInsertSchema(commands).pick({
 // Command Logs
 export const commandLogs = pgTable("command_logs", {
   id: serial("id").primaryKey(),
+  botId: text("bot_id").notNull(),
   timestamp: timestamp("timestamp").defaultNow(),
   serverId: text("server_id").notNull(),
   serverName: text("server_name").notNull(),
@@ -104,9 +127,14 @@ export const commandLogs = pgTable("command_logs", {
   username: text("username").notNull(),
   commandName: text("command_name").notNull(),
   status: text("status").default("success"), // success, failed, permission_denied
+  parameters: json("parameters").default({}), // Store command parameters
+  callbackStatus: text("callback_status"), // success, failed, pending
+  callbackError: text("callback_error"), // Store error message if callback fails
+  callbackTimestamp: timestamp("callback_timestamp"), // When the callback was made
 });
 
 export const insertCommandLogSchema = createInsertSchema(commandLogs).pick({
+  botId: true,
   serverId: true,
   serverName: true,
   channelId: true,
@@ -115,11 +143,17 @@ export const insertCommandLogSchema = createInsertSchema(commandLogs).pick({
   username: true,
   commandName: true,
   status: true,
+  timestamp: true,
+  parameters: true,
+  callbackStatus: true,
+  callbackError: true,
+  callbackTimestamp: true,
 });
 
 // Plugins
 export const plugins = pgTable("plugins", {
   id: serial("id").primaryKey(),
+  botId: text("bot_id").notNull(),
   name: text("name").notNull(),
   version: text("version").notNull(),
   description: text("description"),
@@ -129,6 +163,7 @@ export const plugins = pgTable("plugins", {
 });
 
 export const insertPluginSchema = createInsertSchema(plugins).pick({
+  botId: true,
   name: true,
   version: true,
   description: true,
@@ -140,6 +175,7 @@ export const insertPluginSchema = createInsertSchema(plugins).pick({
 // Stats
 export const botStats = pgTable("bot_stats", {
   id: serial("id").primaryKey(),
+  botId: text("bot_id").notNull(),
   serverCount: integer("server_count").default(0),
   commandsUsed: integer("commands_used").default(0),
   activeUsers: integer("active_users").default(0),
@@ -148,6 +184,7 @@ export const botStats = pgTable("bot_stats", {
 });
 
 export const insertBotStatsSchema = createInsertSchema(botStats).pick({
+  botId: true,
   serverCount: true,
   commandsUsed: true,
   activeUsers: true,

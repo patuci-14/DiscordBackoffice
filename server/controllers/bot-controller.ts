@@ -11,7 +11,16 @@ export const getBotInfo = async (req: Request, res: Response) => {
       });
     }
     
-    const botConfig = await storage.getBotConfig();
+    const { botId } = req.query;
+    
+    if (!botId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Bot ID is required' 
+      });
+    }
+    
+    const botConfig = await storage.getBotConfig(botId as string);
     
     if (!botConfig) {
       return res.status(404).json({ 
@@ -46,7 +55,10 @@ export const updateBotConfig = async (req: Request, res: Response) => {
     }
     
     const { 
-      prefix, status, activity, activityType, useSlashCommands
+      prefix, status, activity, activityType, useSlashCommands,
+      logCommandUsage, respondToMentions, deleteCommandMessages,
+      enableWelcomeMessages, enableGoodbyeMessages, enableAutoRole,
+      enableLogging, enableAntiSpam, enableAutoMod
     } = req.body;
     
     const updates: any = {};
@@ -56,6 +68,15 @@ export const updateBotConfig = async (req: Request, res: Response) => {
     if (activity !== undefined) updates.activity = activity;
     if (activityType !== undefined) updates.activityType = activityType;
     if (useSlashCommands !== undefined) updates.useSlashCommands = useSlashCommands;
+    if (logCommandUsage !== undefined) updates.logCommandUsage = logCommandUsage;
+    if (respondToMentions !== undefined) updates.respondToMentions = respondToMentions;
+    if (deleteCommandMessages !== undefined) updates.deleteCommandMessages = deleteCommandMessages;
+    if (enableWelcomeMessages !== undefined) updates.enableWelcomeMessages = enableWelcomeMessages;
+    if (enableGoodbyeMessages !== undefined) updates.enableGoodbyeMessages = enableGoodbyeMessages;
+    if (enableAutoRole !== undefined) updates.enableAutoRole = enableAutoRole;
+    if (enableLogging !== undefined) updates.enableLogging = enableLogging;
+    if (enableAntiSpam !== undefined) updates.enableAntiSpam = enableAntiSpam;
+    if (enableAutoMod !== undefined) updates.enableAutoMod = enableAutoMod;
     
     const updatedConfig = await storage.updateBotConfig(updates);
     
@@ -99,9 +120,14 @@ export const getServers = async (req: Request, res: Response) => {
         error: 'Bot is not connected' 
       });
     }
-    
-    const servers = await storage.getServers();
-    
+    const { botId } = req.query;
+    if (!botId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Bot ID is required' 
+      });
+    }
+    const servers = await storage.getServers(botId as string);
     return res.status(200).json({
       success: true,
       servers
@@ -174,7 +200,16 @@ export const getBotStats = async (req: Request, res: Response) => {
       });
     }
     
-    let stats = await storage.getBotStats();
+    const { botId } = req.query;
+    
+    if (!botId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Bot ID is required' 
+      });
+    }
+    
+    let stats = await storage.getBotStats(botId as string);
     
     if (!stats) {
       return res.status(404).json({ 
@@ -185,11 +220,12 @@ export const getBotStats = async (req: Request, res: Response) => {
     
     // Update uptime
     stats = await storage.updateBotStats({
+      botId: botId as string,
       uptime: discordBot.getUptime()
     });
     
     // Get recent activity (command logs)
-    const recentLogs = await storage.getCommandLogs(5, 0);
+    const recentLogs = await storage.getCommandLogs(botId as string, 5, 0);
     
     return res.status(200).json({
       success: true,
