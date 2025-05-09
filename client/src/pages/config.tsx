@@ -13,9 +13,11 @@ import { getBotInfo, updateBotConfig, getServers, updateServer } from '@/lib/dis
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { BotConfig, Server } from '@shared/schema';
+import { useAuth } from '@/components/auth/auth-provider';
 
 const Config: React.FC = () => {
   const { toast } = useToast();
+  const { botInfo } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Bot config form state
@@ -38,14 +40,18 @@ const Config: React.FC = () => {
 
   // Fetch bot config
   const { data: botInfoData, isLoading: isBotInfoLoading } = useQuery({
-    queryKey: ['/api/bot'],
+    queryKey: ['/api/bot', botInfo?.id],
+    queryFn: () => getBotInfo(),
     retry: false,
+    enabled: !!botInfo?.id
   });
 
   // Fetch servers
   const { data: serversData, isLoading: isServersLoading } = useQuery({
-    queryKey: ['/api/bot/servers'],
+    queryKey: ['/api/bot/servers', botInfo?.id],
+    queryFn: () => getServers(),
     retry: false,
+    enabled: !!botInfo?.id
   });
   
   // Filter servers based on search term

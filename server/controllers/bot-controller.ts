@@ -53,16 +53,20 @@ export const updateBotConfig = async (req: Request, res: Response) => {
         error: 'Bot is not connected' 
       });
     }
-    
+    const { botId } = req.query;
+    if (!botId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Bot ID is required' 
+      });
+    }
     const { 
       prefix, status, activity, activityType, useSlashCommands,
       logCommandUsage, respondToMentions, deleteCommandMessages,
       enableWelcomeMessages, enableGoodbyeMessages, enableAutoRole,
       enableLogging, enableAntiSpam, enableAutoMod
     } = req.body;
-    
     const updates: any = {};
-    
     if (prefix !== undefined) updates.prefix = prefix;
     if (status !== undefined) updates.status = status;
     if (activity !== undefined) updates.activity = activity;
@@ -77,16 +81,13 @@ export const updateBotConfig = async (req: Request, res: Response) => {
     if (enableLogging !== undefined) updates.enableLogging = enableLogging;
     if (enableAntiSpam !== undefined) updates.enableAntiSpam = enableAntiSpam;
     if (enableAutoMod !== undefined) updates.enableAutoMod = enableAutoMod;
-    
-    const updatedConfig = await storage.updateBotConfig(updates);
-    
+    const updatedConfig = await storage.updateBotConfig(botId as string, updates);
     if (!updatedConfig) {
       return res.status(404).json({ 
         success: false,
         error: 'Bot configuration not found' 
       });
     }
-    
     // Update bot status on Discord
     if (status || activity || activityType) {
       await discordBot.updateStatus(
@@ -95,10 +96,8 @@ export const updateBotConfig = async (req: Request, res: Response) => {
         activityType || updatedConfig.activityType
       );
     }
-    
     // Don't include the token in the response
     const { token, ...safeConfig } = updatedConfig;
-    
     return res.status(200).json({
       success: true,
       config: safeConfig

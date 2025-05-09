@@ -17,6 +17,14 @@ interface CommandOption {
   description: string;
   type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE';
   required: boolean;
+  autocomplete?: {
+    enabled: boolean;
+    service: string;
+    apiUrl?: string;
+    apiMethod?: 'GET' | 'POST';
+    apiHeaders?: Record<string, string>;
+    apiBody?: Record<string, any>;
+  };
 }
 
 interface CommandFormProps {
@@ -42,6 +50,9 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   const [active, setActive] = useState(true);
   const [options, setOptions] = useState<CommandOption[]>([]);
   const [showOptionsPanel, setShowOptionsPanel] = useState(false);
+  
+  // Adicionar botId do localStorage (ou contexto)
+  const botId = localStorage.getItem('botId') || '';
   
   // Initialize form with command data if provided
   useEffect(() => {
@@ -163,6 +174,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
     }
     
     const commandData: InsertCommand = {
+      botId,
       name,
       type,
       description,
@@ -222,6 +234,10 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
     };
     setOptions(newOptions);
   };
+
+  // Corrigir os placeholders dos Textarea
+  const headersPlaceholder = '{\n  "Authorization": "Bearer ..."\n}';
+  const bodyPlaceholder = '{\n  "filtro": "valor"\n}';
 
   return (
     <div>
@@ -436,8 +452,104 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                       <ToggleSwitch
                         checked={option.required}
                         onChange={(checked) => updateOption(index, 'required', checked)}
-                        label={<span>Required parameter <span className="text-xs text-discord-blurple">(affects the Discord command UI)</span></span>}
+                        label="Required parameter (affects the Discord command UI)"
                       />
+                    </div>
+                    
+                    {/* Autocomplete config */}
+                    <div className="mt-2">
+                      <ToggleSwitch
+                        checked={option.autocomplete?.enabled || false}
+                        onChange={(checked) => {
+                          updateOption(index, 'autocomplete', {
+                            ...option.autocomplete,
+                            enabled: checked,
+                            service: checked ? (option.autocomplete?.service || '') : '',
+                            apiUrl: checked ? (option.autocomplete?.apiUrl || '') : '',
+                            apiMethod: checked ? (option.autocomplete?.apiMethod || 'GET') : 'GET',
+                            apiHeaders: checked ? (option.autocomplete?.apiHeaders || {}) : {},
+                            apiBody: checked ? (option.autocomplete?.apiBody || {}) : {},
+                          });
+                        }}
+                        label="Ativar autocomplete para este parâmetro"
+                      />
+                      {option.autocomplete?.enabled && (
+                        <div className="mt-2 space-y-2 border-l-2 border-discord-blurple pl-4">
+                          <div>
+                            <Label className="block text-discord-text-secondary text-xs mb-1">Serviço (Ex: servers, channels, roles, users, external)</Label>
+                            <Input
+                              value={option.autocomplete.service || ''}
+                              onChange={e => updateOption(index, 'autocomplete', {
+                                ...option.autocomplete,
+                                service: e.target.value
+                              })}
+                              placeholder="external"
+                              className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                            />
+                          </div>
+                          <div>
+                            <Label className="block text-discord-text-secondary text-xs mb-1">URL da API externa (opcional)</Label>
+                            <Input
+                              value={option.autocomplete.apiUrl || ''}
+                              onChange={e => updateOption(index, 'autocomplete', {
+                                ...option.autocomplete,
+                                apiUrl: e.target.value
+                              })}
+                              placeholder="https://sua-api.com/autocomplete"
+                              className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                            />
+                          </div>
+                          <div>
+                            <Label className="block text-discord-text-secondary text-xs mb-1">Método HTTP</Label>
+                            <Select value={option.autocomplete.apiMethod || 'GET'} onValueChange={value => updateOption(index, 'autocomplete', {
+                              ...option.autocomplete,
+                              apiMethod: value as 'GET' | 'POST'
+                            })}>
+                              <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
+                                <SelectValue placeholder="GET" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="GET">GET</SelectItem>
+                                <SelectItem value="POST">POST</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="block text-discord-text-secondary text-xs mb-1">Headers (JSON)</Label>
+                            <Textarea
+                              value={JSON.stringify(option.autocomplete?.apiHeaders || {}, null, 2)}
+                              onChange={e => {
+                                let val = {};
+                                try { val = JSON.parse(e.target.value); } catch {}
+                                updateOption(index, 'autocomplete', {
+                                  ...option.autocomplete,
+                                  apiHeaders: val
+                                });
+                              }}
+                              placeholder={headersPlaceholder}
+                              className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                              rows={2}
+                            />
+                          </div>
+                          <div>
+                            <Label className="block text-discord-text-secondary text-xs mb-1">Body (JSON, para POST)</Label>
+                            <Textarea
+                              value={JSON.stringify(option.autocomplete?.apiBody || {}, null, 2)}
+                              onChange={e => {
+                                let val = {};
+                                try { val = JSON.parse(e.target.value); } catch {}
+                                updateOption(index, 'autocomplete', {
+                                  ...option.autocomplete,
+                                  apiBody: val
+                                });
+                              }}
+                              placeholder={bodyPlaceholder}
+                              className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                              rows={2}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

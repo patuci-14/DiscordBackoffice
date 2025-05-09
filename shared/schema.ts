@@ -204,6 +204,23 @@ export type InsertServer = z.infer<typeof insertServerSchema>;
 export type Command = typeof commands.$inferSelect;
 export type InsertCommand = z.infer<typeof insertCommandSchema>;
 
+// Command option types
+export type CommandOption = {
+  name: string;
+  type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE' | 'NUMBER';
+  description: string;
+  required: boolean;
+  autocomplete?: {
+    enabled: boolean;
+    service: string; // Nome do serviço que fornecerá as sugestões
+    apiUrl?: string; // URL da API externa para buscar sugestões
+    apiMethod?: 'GET' | 'POST'; // Método HTTP para chamar a API
+    apiHeaders?: Record<string, string>; // Headers opcionais para a requisição
+    apiBody?: Record<string, any>; // Body opcional para requisições POST
+    parameters?: Record<string, any>; // Parâmetros adicionais para o serviço
+  };
+};
+
 export type CommandLog = typeof commandLogs.$inferSelect;
 export type InsertCommandLog = z.infer<typeof insertCommandLogSchema>;
 

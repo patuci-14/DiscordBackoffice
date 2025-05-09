@@ -36,7 +36,7 @@ export interface IStorage {
   createCommand(command: InsertCommand): Promise<Command>;
   updateCommand(id: number, update: Partial<Command>): Promise<Command | undefined>;
   deleteCommand(id: number): Promise<boolean>;
-  incrementCommandUsage(id: number): Promise<Command | undefined>;
+  incrementCommandUsageByBotId(botId: string, commandName: string): Promise<void>;
 
   // Command logs
   getCommandLogs(botId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
@@ -354,24 +354,27 @@ export class MemStorage implements IStorage {
     return this.commands.delete(id);
   }
 
-  async incrementCommandUsage(id: number): Promise<Command | undefined> {
-    const command = this.commands.get(id);
-    if (!command) return undefined;
-    
+  async incrementCommandUsageByBotId(botId: string, commandName: string): Promise<void> {
+    const command = await this.getCommandByName(botId, commandName);
+    if (!command) return;
+
+    // Update command usage count
     const updatedCommand: Command = { 
       ...command, 
       usageCount: (command.usageCount || 0) + 1 
     };
-    this.commands.set(id, updatedCommand);
+    this.commands.set(command.id, updatedCommand);
     
     // Update commands used in stats
-    if (this.botStats.has("default-bot")) {
-      await this.updateBotStats({ 
-        commandsUsed: (this.botStats.get("default-bot")?.commandsUsed || 0) + 1 
-      });
+    const currentStats = this.botStats.get(botId);
+    if (currentStats) {
+      const updatedStats: BotStat = {
+        ...currentStats,
+        commandsUsed: (currentStats.commandsUsed || 0) + 1,
+        lastUpdate: new Date()
+      };
+      this.botStats.set(botId, updatedStats);
     }
-    
-    return updatedCommand;
   }
 
   // Command logs

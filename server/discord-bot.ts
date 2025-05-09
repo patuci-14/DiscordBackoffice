@@ -1,10 +1,10 @@
 import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder, 
   ApplicationCommandType, ApplicationCommandOptionType, REST, Routes, Interaction, 
   ChatInputCommandInteraction, TextChannel, DMChannel, VoiceChannel, Channel, BaseGuildTextChannel,
-  GuildMember, PartialGuildMember, GuildBasedChannel } from 'discord.js';
+  GuildMember, PartialGuildMember, GuildBasedChannel, AutocompleteInteraction, Role } from 'discord.js';
 import axios from 'axios';
 import { storage } from './storage';
-import { BotConfig, Server, InsertServer, Command, InsertCommandLog } from '@shared/schema';
+import { BotConfig, Server, InsertServer, Command, InsertCommandLog, CommandOption } from '@shared/schema';
 import { handleMemberJoin, handleMemberLeave } from './features/welcome-messages';
 import { handleMessage as handleAutoMod } from './features/auto-moderation';
 import { handleMessageDelete, handleMemberUpdate } from './features/logging';
@@ -99,9 +99,11 @@ class DiscordBot {
     
     // Handle slash command interactions
     this.client.on(Events.InteractionCreate, async (interaction) => {
-      if (!interaction.isChatInputCommand()) return;
-      
-      await this.handleSlashCommand(interaction);
+      if (interaction.isChatInputCommand()) {
+        await this.handleSlashCommand(interaction);
+      } else if (interaction.isAutocomplete()) {
+        await this.handleAutocomplete(interaction);
+      }
     });
     
     this.client.on(Events.MessageCreate, async (message) => {
@@ -582,6 +584,230 @@ class DiscordBot {
   }
   
   /**
+   * Handle autocomplete interactions
+   */
+  private async handleAutocomplete(interaction: AutocompleteInteraction) {
+    const command = this.commands.get(interaction.commandName);
+    if (!command) {
+      console.log(`Autocomplete: comando "${interaction.commandName}" não encontrado`);
+      return;
+    }
+
+    const focusedOption = interaction.options.getFocused(true);
+    console.log('Autocomplete interaction:', {
+      commandName: interaction.commandName,
+      focusedOption,
+      commandOptionsType: typeof command.options,
+      commandOptionsIsArray: Array.isArray(command.options),
+      commandOptionsKeys: command.options ? Object.keys(command.options) : []
+    });
+
+    // Busca a opção de forma mais robusta
+    let option: CommandOption | undefined;
+    
+    if (Array.isArray(command.options)) {
+      // Se options for um array, busca pelo nome (case insensitive)
+      option = command.options.find(opt => 
+        opt.name.toLowerCase() === focusedOption.name.toLowerCase()
+      );
+      console.log(`Opção encontrada no array: ${option ? 'Sim' : 'Não'}`);
+    } else if (command.options && typeof command.options === 'object') {
+      // Se options for um objeto, tenta acessar diretamente
+      option = command.options[focusedOption.name] as CommandOption;
+      console.log(`Opção encontrada no objeto: ${option ? 'Sim' : 'Não'}`);
+    }
+    
+    if (!option) {
+      console.log('Nenhuma opção encontrada para autocomplete');
+      return;
+    }
+
+    if (!option.autocomplete?.enabled) {
+      console.log('Autocomplete não está habilitado para esta opção');
+      return;
+    }
+
+    console.log('Configuração de autocomplete:', {
+      enabled: option.autocomplete.enabled,
+      service: option.autocomplete.service,
+      apiUrl: option.autocomplete.apiUrl
+    });
+
+    try {
+      // Aqui você pode implementar a lógica para buscar as sugestões
+      // baseado no serviço especificado em option.autocomplete.service
+      const suggestions = await this.getAutocompleteSuggestions(command, option, focusedOption.value);
+      console.log(`Retornando ${suggestions.length} sugestões para o Discord`);
+
+      await interaction.respond(
+        suggestions.map(suggestion => ({
+          name: suggestion.name,
+          value: suggestion.value
+        }))
+      );
+    } catch (error) {
+      console.error('Error handling autocomplete:', error);
+      await interaction.respond([]);
+    }
+  }
+
+  /**
+   * Get autocomplete suggestions from a service
+   */
+  private async getAutocompleteSuggestions(
+    command: Command,
+    option: CommandOption,
+    input: string
+  ): Promise<Array<{ name: string; value: string }>> {
+    // Se tiver uma URL de API configurada, usa ela
+    if (option.autocomplete?.apiUrl) {
+      console.log(`Buscando sugestões da API externa: ${option.autocomplete.apiUrl}`);
+      console.log(`Método: ${option.autocomplete.apiMethod || 'GET'}, Input: ${input}`);
+      
+      try {
+        const requestConfig = {
+          method: option.autocomplete.apiMethod || 'GET',
+          url: option.autocomplete.apiUrl,
+          headers: option.autocomplete.apiHeaders || {},
+          data: option.autocomplete.apiMethod === 'POST' ? {
+            ...option.autocomplete.apiBody,
+            input,
+            botId: this.client.user?.id
+          } : undefined,
+          params: option.autocomplete.apiMethod === 'GET' ? {
+            ...option.autocomplete.apiBody,
+            input,
+            botId: this.client.user?.id
+          } : undefined,
+          timeout: 2500 // Timeout de 2.5 segundos para evitar atrasos longos
+        };
+        
+        console.log('Configuração da requisição:', JSON.stringify(requestConfig, null, 2));
+        
+        const response = await axios(requestConfig);
+        
+        console.log(`Resposta da API (status ${response.status}):`, 
+          typeof response.data === 'object' ? 
+            JSON.stringify(response.data).substring(0, 200) + '...' : 
+            response.data
+        );
+
+        // Espera que a API retorne um array de objetos com name e value
+        if (Array.isArray(response.data)) {
+          const validSuggestions = response.data
+            .filter(item => item && item.name && item.value)
+            .slice(0, 25);
+            
+          console.log(`Encontradas ${validSuggestions.length} sugestões válidas`);
+          return validSuggestions;
+        }
+        
+        // Se a API retornar um formato diferente, tenta adaptar
+        if (typeof response.data === 'object' && response.data !== null) {
+          const adaptedSuggestions = Object.entries(response.data)
+            .map(([key, value]) => ({
+              name: String(value),
+              value: key
+            }))
+            .slice(0, 25);
+            
+          console.log(`Adaptadas ${adaptedSuggestions.length} sugestões do formato de objeto`);
+          return adaptedSuggestions;
+        }
+
+        console.log('Formato de resposta não reconhecido, retornando array vazio');
+        return [];
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          console.error('Erro na chamada à API de autocomplete:', {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+            url: option.autocomplete.apiUrl
+          });
+        } else {
+          console.error('Erro desconhecido na chamada à API de autocomplete:', error);
+        }
+        return [];
+      }
+    }
+
+    console.log(`Usando serviço interno: ${option.autocomplete?.service}`);
+    
+    // Se não tiver URL de API, usa os serviços internos
+    switch (option.autocomplete?.service) {
+      case 'servers':
+        return this.getServerSuggestions(input);
+      case 'channels':
+        return this.getChannelSuggestions(input);
+      case 'roles':
+        return this.getRoleSuggestions(input);
+      case 'users':
+        return this.getUserSuggestions(input);
+      default:
+        console.log(`Serviço não reconhecido: ${option.autocomplete?.service}`);
+        return [];
+    }
+  }
+
+  private async getServerSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
+    const servers = await storage.getServers(this.client.user?.id || 'unknown');
+    return servers
+      .filter(server => server.name.toLowerCase().includes(input.toLowerCase()))
+      .map(server => ({
+        name: server.name,
+        value: server.serverId
+      }))
+      .slice(0, 25); // Discord limita a 25 sugestões
+  }
+
+  private async getChannelSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
+    const guild = this.client.guilds.cache.first();
+    if (!guild) return [];
+    
+    return guild.channels.cache
+      .filter(channel => 
+        channel.name.toLowerCase().includes(input.toLowerCase()) &&
+        channel instanceof TextChannel
+      )
+      .map(channel => ({
+        name: channel.name,
+        value: channel.id
+      }))
+      .slice(0, 25);
+  }
+
+  private async getRoleSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
+    const guild = this.client.guilds.cache.first();
+    if (!guild) return [];
+    
+    return guild.roles.cache
+      .filter(role => 
+        role.name.toLowerCase().includes(input.toLowerCase())
+      )
+      .map(role => ({
+        name: role.name,
+        value: role.id
+      }))
+      .slice(0, 25);
+  }
+
+  private async getUserSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
+    const guild = this.client.guilds.cache.first();
+    if (!guild) return [];
+    
+    return guild.members.cache
+      .filter(member => 
+        member.user.username.toLowerCase().includes(input.toLowerCase())
+      )
+      .map(member => ({
+        name: member.user.username,
+        value: member.id
+      }))
+      .slice(0, 25);
+  }
+
+  /**
    * Register slash commands with Discord API
    */
   private async registerSlashCommands() {
@@ -638,13 +864,15 @@ class DiscordBot {
             console.log(`Processing option "${optionName}":
   - type: ${option.type}
   - required: ${isRequired}
-  - description: ${option.description || `Option for ${cmd.name}`}`);
+  - description: ${option.description || `Option for ${cmd.name}`}
+  - autocomplete: ${option.autocomplete?.enabled ? 'enabled' : 'disabled'}`);
             
             const optionData = {
               name: optionName,
               description: option.description || `Option for ${cmd.name}`,
               type: this.getApplicationCommandOptionType(option.type),
-              required: isRequired
+              required: isRequired,
+              autocomplete: option.autocomplete?.enabled || false
             };
             
             console.log(`Option formatted as: ${JSON.stringify(optionData)}`);
@@ -790,7 +1018,7 @@ class DiscordBot {
         .replace('{ping}', this.client.ws.ping.toString());
       
       // Increment usage count
-      await storage.incrementCommandUsage(command.id);
+      await storage.incrementCommandUsageByBotId(this.client.user?.id || 'unknown', command.name);
       
       // Send the response based on command type
       if (command.type === 'embed') {

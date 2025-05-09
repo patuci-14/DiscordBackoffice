@@ -192,7 +192,7 @@ export const updateCommand = async (req: Request, res: Response) => {
     const { 
       name, type, response, description, webhookUrl, requiredPermission, 
       cooldown, enabledForAllServers, deleteUserMessage, 
-      logUsage, active 
+      logUsage, active, options
     } = req.body;
     
     const updates: Partial<InsertCommand> = {};
@@ -208,6 +208,7 @@ export const updateCommand = async (req: Request, res: Response) => {
     if (deleteUserMessage !== undefined) updates.deleteUserMessage = deleteUserMessage;
     if (logUsage !== undefined) updates.logUsage = logUsage;
     if (active !== undefined) updates.active = active;
+    if (options !== undefined) updates.options = options;
     
     // Check if name is being changed and if it already exists
     if (name && name !== existingCommand.name) {

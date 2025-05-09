@@ -142,6 +142,9 @@ export class DbStorage implements IStorage {
       .where(eq(commands.id, id))
       .returning();
 
+    // Log para depuração
+    console.log('Incrementando usage para botId:', command.botId, 'comando:', command.name);
+
     // Increment commandsUsed only for the correct bot
     await db.update(botStats)
       .set({ 
@@ -152,6 +155,29 @@ export class DbStorage implements IStorage {
       .returning();
 
     return result[0];
+  }
+
+  async incrementCommandUsageByBotId(botId: string, commandName: string): Promise<void> {
+    // Busca o comando do bot correto
+    const command = await db.select().from(commands)
+      .where(and(eq(commands.botId, botId), eq(commands.name, commandName)))
+      .then(res => res[0]);
+    if (!command) return;
+
+    // Atualiza o usageCount do comando
+    await db.update(commands)
+      .set({ usageCount: (command.usageCount ?? 0) + 1 })
+      .where(eq(commands.id, command.id))
+      .returning();
+
+    // Incrementa o contador de comandos usados do bot correto
+    await db.update(botStats)
+      .set({ 
+        commandsUsed: sql`${botStats.commandsUsed} + 1`,
+        lastUpdate: new Date()
+      })
+      .where(eq(botStats.botId, botId))
+      .returning();
   }
 
   // Command logs

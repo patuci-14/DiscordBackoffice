@@ -31,7 +31,14 @@ export async function getBotInfo(): Promise<{ success: boolean; config?: BotConf
 
 export async function updateBotConfig(config: Partial<BotConfig>): Promise<{ success: boolean; config?: BotConfig; error?: string }> {
   try {
-    const response = await apiRequest('PATCH', '/api/bot', config);
+    const botId = localStorage.getItem('botId');
+    if (!botId) {
+      return { 
+        success: false, 
+        error: 'Bot ID not found' 
+      };
+    }
+    const response = await apiRequest('PATCH', `/api/bot?botId=${botId}`, config);
     const data = await response.json();
     return data;
   } catch (error) {
