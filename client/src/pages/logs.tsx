@@ -53,6 +53,14 @@ const Logs: React.FC = () => {
     });
   };
 
+  const handlePageSizeChange = (limit: number) => {
+    setFilterParams({
+      ...filterParams,
+      limit,
+      offset: 0 // Reset to first page when changing page size
+    });
+  };
+
   const exportButton = (
     <Button
       variant="outline"
@@ -74,6 +82,7 @@ const Logs: React.FC = () => {
         isLoading={isLoading}
         pagination={data?.pagination}
         onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
       />
     </AppShell>
   );

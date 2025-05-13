@@ -10,6 +10,23 @@ import { useToast } from '@/hooks/use-toast';
 import { createCommand, updateCommand, deleteCommand } from '@/lib/discord-api';
 import { queryClient } from '@/lib/queryClient';
 import { Command, InsertCommand } from '@shared/schema';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Define the structure for slash command options
 interface CommandOption {
@@ -235,14 +252,31 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
     setOptions(newOptions);
   };
 
-  // Corrigir os placeholders dos Textarea
-  const headersPlaceholder = '{\n  "Authorization": "Bearer ..."\n}';
-  const bodyPlaceholder = '{\n  "filtro": "valor"\n}';
+  // Inside the CommandForm component, add the sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Add handleDragEnd function
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      setOptions((items) => {
+        const oldIndex = items.findIndex((_, i) => i === active.id);
+        const newIndex = items.findIndex((_, i) => i === over.id);
+        
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   return (
     <div>
       <h3 className="font-bold mb-4">{isEditing ? 'Edit Command' : 'Create New Command'}</h3>
-      
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
@@ -396,163 +430,26 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                   These will appear as options in Discord when users type the command.
                 </p>
                 
-                {options.map((option, index) => (
-                  <div key={index} className="border border-gray-700 rounded p-3 space-y-3">
-                    <div className="flex justify-between">
-                      <h4 className="text-sm font-medium text-discord-text">Parameter #{index + 1}</h4>
-                      <Button
-                        type="button"
-                        onClick={() => removeOption(index)}
-                        className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <Label className="block text-discord-text-secondary text-xs mb-1">Name</Label>
-                        <Input
-                          value={option.name}
-                          onChange={(e) => updateOption(index, 'name', e.target.value)}
-                          placeholder="parameter_name"
-                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label className="block text-discord-text-secondary text-xs mb-1">Type</Label>
-                        <Select value={option.type} onValueChange={(value) => updateOption(index, 'type', value)}>
-                          <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="STRING">String</SelectItem>
-                            <SelectItem value="INTEGER">Integer</SelectItem>
-                            <SelectItem value="BOOLEAN">Boolean</SelectItem>
-                            <SelectItem value="USER">User</SelectItem>
-                            <SelectItem value="CHANNEL">Channel</SelectItem>
-                            <SelectItem value="ROLE">Role</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="block text-discord-text-secondary text-xs mb-1">Description</Label>
-                      <Input
-                        value={option.description}
-                        onChange={(e) => updateOption(index, 'description', e.target.value)}
-                        placeholder="What this parameter does..."
-                        className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={options.map((_, index) => index)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {options.map((option, index) => (
+                      <SortableParameter
+                        key={index}
+                        option={option}
+                        index={index}
+                        updateOption={updateOption}
+                        removeOption={removeOption}
                       />
-                    </div>
-                    
-                    <div>
-                      <ToggleSwitch
-                        checked={option.required}
-                        onChange={(checked) => updateOption(index, 'required', checked)}
-                        label="Required parameter (affects the Discord command UI)"
-                      />
-                    </div>
-                    
-                    {/* Autocomplete config */}
-                    <div className="mt-2">
-                      <ToggleSwitch
-                        checked={option.autocomplete?.enabled || false}
-                        onChange={(checked) => {
-                          updateOption(index, 'autocomplete', {
-                            ...option.autocomplete,
-                            enabled: checked,
-                            service: checked ? (option.autocomplete?.service || '') : '',
-                            apiUrl: checked ? (option.autocomplete?.apiUrl || '') : '',
-                            apiMethod: checked ? (option.autocomplete?.apiMethod || 'GET') : 'GET',
-                            apiHeaders: checked ? (option.autocomplete?.apiHeaders || {}) : {},
-                            apiBody: checked ? (option.autocomplete?.apiBody || {}) : {},
-                          });
-                        }}
-                        label="Ativar autocomplete para este parâmetro"
-                      />
-                      {option.autocomplete?.enabled && (
-                        <div className="mt-2 space-y-2 border-l-2 border-discord-blurple pl-4">
-                          <div>
-                            <Label className="block text-discord-text-secondary text-xs mb-1">Serviço (Ex: servers, channels, roles, users, external)</Label>
-                            <Input
-                              value={option.autocomplete.service || ''}
-                              onChange={e => updateOption(index, 'autocomplete', {
-                                ...option.autocomplete,
-                                service: e.target.value
-                              })}
-                              placeholder="external"
-                              className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                            />
-                          </div>
-                          <div>
-                            <Label className="block text-discord-text-secondary text-xs mb-1">URL da API externa (opcional)</Label>
-                            <Input
-                              value={option.autocomplete.apiUrl || ''}
-                              onChange={e => updateOption(index, 'autocomplete', {
-                                ...option.autocomplete,
-                                apiUrl: e.target.value
-                              })}
-                              placeholder="https://sua-api.com/autocomplete"
-                              className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                            />
-                          </div>
-                          <div>
-                            <Label className="block text-discord-text-secondary text-xs mb-1">Método HTTP</Label>
-                            <Select value={option.autocomplete.apiMethod || 'GET'} onValueChange={value => updateOption(index, 'autocomplete', {
-                              ...option.autocomplete,
-                              apiMethod: value as 'GET' | 'POST'
-                            })}>
-                              <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
-                                <SelectValue placeholder="GET" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="GET">GET</SelectItem>
-                                <SelectItem value="POST">POST</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label className="block text-discord-text-secondary text-xs mb-1">Headers (JSON)</Label>
-                            <Textarea
-                              value={JSON.stringify(option.autocomplete?.apiHeaders || {}, null, 2)}
-                              onChange={e => {
-                                let val = {};
-                                try { val = JSON.parse(e.target.value); } catch {}
-                                updateOption(index, 'autocomplete', {
-                                  ...option.autocomplete,
-                                  apiHeaders: val
-                                });
-                              }}
-                              placeholder={headersPlaceholder}
-                              className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                              rows={2}
-                            />
-                          </div>
-                          <div>
-                            <Label className="block text-discord-text-secondary text-xs mb-1">Body (JSON, para POST)</Label>
-                            <Textarea
-                              value={JSON.stringify(option.autocomplete?.apiBody || {}, null, 2)}
-                              onChange={e => {
-                                let val = {};
-                                try { val = JSON.parse(e.target.value); } catch {}
-                                updateOption(index, 'autocomplete', {
-                                  ...option.autocomplete,
-                                  apiBody: val
-                                });
-                              }}
-                              placeholder={bodyPlaceholder}
-                              className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                              rows={2}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                    ))}
+                  </SortableContext>
+                </DndContext>
                 
                 <Button
                   type="button"
@@ -604,6 +501,200 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
           </Button>
         </div>
       </form>
+    </div>
+  );
+};
+
+// Add SortableParameter component
+const SortableParameter = ({ option, index, updateOption, removeOption }: {
+  option: CommandOption;
+  index: number;
+  updateOption: (index: number, field: keyof CommandOption, value: any) => void;
+  removeOption: (index: number) => void;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: index });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  // Move placeholders inside the component
+  const headersPlaceholder = '{\n  "Authorization": "Bearer ..."\n}';
+  const bodyPlaceholder = '{\n  "filtro": "valor"\n}';
+
+  return (
+    <div ref={setNodeRef} style={style} className="border border-gray-700 rounded p-3 space-y-3">
+      <div className="flex justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="cursor-grab text-discord-text-secondary hover:text-discord-text"
+            {...attributes}
+            {...listeners}
+          >
+            <i className="fas fa-grip-vertical"></i>
+          </button>
+          <h4 className="text-sm font-medium text-discord-text">Parameter #{index + 1}</h4>
+        </div>
+        <Button
+          type="button"
+          onClick={() => removeOption(index)}
+          className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
+        >
+          Remove
+        </Button>
+      </div>
+      
+      {/* Rest of the parameter form fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <Label className="block text-discord-text-secondary text-xs mb-1">Name</Label>
+          <Input
+            value={option.name}
+            onChange={(e) => updateOption(index, 'name', e.target.value)}
+            placeholder="parameter_name"
+            className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+          />
+        </div>
+        
+        <div>
+          <Label className="block text-discord-text-secondary text-xs mb-1">Type</Label>
+          <Select value={option.type} onValueChange={(value) => updateOption(index, 'type', value)}>
+            <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="STRING">String</SelectItem>
+              <SelectItem value="INTEGER">Integer</SelectItem>
+              <SelectItem value="BOOLEAN">Boolean</SelectItem>
+              <SelectItem value="USER">User</SelectItem>
+              <SelectItem value="CHANNEL">Channel</SelectItem>
+              <SelectItem value="ROLE">Role</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      
+      <div>
+        <Label className="block text-discord-text-secondary text-xs mb-1">Description</Label>
+        <Input
+          value={option.description}
+          onChange={(e) => updateOption(index, 'description', e.target.value)}
+          placeholder="What this parameter does..."
+          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+        />
+      </div>
+      
+      <div>
+        <ToggleSwitch
+          checked={option.required}
+          onChange={(checked) => updateOption(index, 'required', checked)}
+          label="Required parameter (affects the Discord command UI)"
+        />
+      </div>
+      
+      {/* Autocomplete config */}
+      <div className="mt-2">
+        <ToggleSwitch
+          checked={option.autocomplete?.enabled || false}
+          onChange={(checked) => {
+            updateOption(index, 'autocomplete', {
+              ...option.autocomplete,
+              enabled: checked,
+              service: checked ? (option.autocomplete?.service || '') : '',
+              apiUrl: checked ? (option.autocomplete?.apiUrl || '') : '',
+              apiMethod: checked ? (option.autocomplete?.apiMethod || 'GET') : 'GET',
+              apiHeaders: checked ? (option.autocomplete?.apiHeaders || {}) : {},
+              apiBody: checked ? (option.autocomplete?.apiBody || {}) : {},
+            });
+          }}
+          label="Ativar autocomplete para este parâmetro"
+        />
+        {option.autocomplete?.enabled && (
+          <div className="mt-6 space-y-2 border-discord-blurple">
+            <div>
+              <Label className="block text-discord-text-secondary text-xs mb-1">Serviço (Ex: servers, channels, roles, users, external)</Label>
+              <Input
+                value={option.autocomplete.service || ''}
+                onChange={e => updateOption(index, 'autocomplete', {
+                  ...option.autocomplete,
+                  service: e.target.value
+                })}
+                placeholder="external"
+                className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+              />
+            </div>
+            <div>
+              <Label className="block text-discord-text-secondary text-xs mb-1">URL da API externa (opcional)</Label>
+              <Input
+                value={option.autocomplete.apiUrl || ''}
+                onChange={e => updateOption(index, 'autocomplete', {
+                  ...option.autocomplete,
+                  apiUrl: e.target.value
+                })}
+                placeholder="https://sua-api.com/autocomplete"
+                className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+              />
+            </div>
+            <div>
+              <Label className="block text-discord-text-secondary text-xs mb-1">Método HTTP</Label>
+              <Select value={option.autocomplete.apiMethod || 'GET'} onValueChange={value => updateOption(index, 'autocomplete', {
+                ...option.autocomplete,
+                apiMethod: value as 'GET' | 'POST'
+              })}>
+                <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
+                  <SelectValue placeholder="GET" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GET">GET</SelectItem>
+                  <SelectItem value="POST">POST</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="block text-discord-text-secondary text-xs mb-1">Headers (JSON)</Label>
+              <Textarea
+                value={JSON.stringify(option.autocomplete?.apiHeaders || {}, null, 2)}
+                onChange={e => {
+                  let val = {};
+                  try { val = JSON.parse(e.target.value); } catch {}
+                  updateOption(index, 'autocomplete', {
+                    ...option.autocomplete,
+                    apiHeaders: val
+                  });
+                }}
+                placeholder={headersPlaceholder}
+                className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                rows={2}
+              />
+            </div>
+            <div>
+              <Label className="block text-discord-text-secondary text-xs mb-1">Body (JSON, para POST)</Label>
+              <Textarea
+                value={JSON.stringify(option.autocomplete?.apiBody || {}, null, 2)}
+                onChange={e => {
+                  let val = {};
+                  try { val = JSON.parse(e.target.value); } catch {}
+                  updateOption(index, 'autocomplete', {
+                    ...option.autocomplete,
+                    apiBody: val
+                  });
+                }}
+                placeholder={bodyPlaceholder}
+                className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

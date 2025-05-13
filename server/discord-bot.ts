@@ -503,6 +503,8 @@ class DiscordBot {
     const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
     if (!botConfig) return;
     
+    console.log('botConfigStatus', botConfig.status);
+
     // Set status
     switch (botConfig.status) {
       case 'online':
@@ -522,10 +524,12 @@ class DiscordBot {
         break;
     }
     
+    console.log('botConfigActivity', botConfig.activity);
+    console.log('botConfigActivityType', botConfig.activityType);
     // Set activity
     if (botConfig.activity) {
       this.client.user?.setActivity(botConfig.activity, { 
-        type: botConfig.activityType as any 
+        type: botConfig.activityType
       });
     }
   }
@@ -870,7 +874,7 @@ class DiscordBot {
             const optionData = {
               name: optionName,
               description: option.description || `Option for ${cmd.name}`,
-              type: this.getApplicationCommandOptionType(option.type),
+              type: this.getApplicationCommandOptionType(option.type.toUpperCase()),
               required: isRequired,
               autocomplete: option.autocomplete?.enabled || false
             };
@@ -989,19 +993,23 @@ class DiscordBot {
           let optionValue = '';
           
           // Get the value based on option type
-          if (option.type === 'STRING') {
+          if (option.type.toUpperCase() === 'STRING') {
             optionValue = interaction.options.getString(optionName) || '';
-          } else if (option.type === 'INTEGER' || option.type === 'NUMBER') {
-            optionValue = String(interaction.options.getNumber(optionName) || '');
-          } else if (option.type === 'BOOLEAN') {
+          } else if (option.type.toUpperCase() === 'INTEGER') {
+            const value = interaction.options.getInteger(optionName);
+            optionValue = value !== null ? value.toString() : '';
+          } else if (option.type.toUpperCase() === 'NUMBER') {
+            const value = interaction.options.getNumber(optionName);
+            optionValue = value !== null ? value.toString() : '';
+          } else if (option.type.toUpperCase() === 'BOOLEAN') {
             optionValue = String(interaction.options.getBoolean(optionName) || '');
-          } else if (option.type === 'USER') {
+          } else if (option.type.toUpperCase() === 'USER') {
             const user = interaction.options.getUser(optionName);
             optionValue = user ? user.username : '';
-          } else if (option.type === 'CHANNEL') {
+          } else if (option.type.toUpperCase() === 'CHANNEL') {
             const channel = interaction.options.getChannel(optionName);
             optionValue = channel ? channel.name : '';
-          } else if (option.type === 'ROLE') {
+          } else if (option.type.toUpperCase() === 'ROLE') {
             const role = interaction.options.getRole(optionName);
             optionValue = role ? role.name : '';
           }

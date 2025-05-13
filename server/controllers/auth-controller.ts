@@ -35,7 +35,7 @@ export const authenticate = async (req: Request, res: Response) => {
     }
     
     // Atualize ou crie o botConfig com todos os dados relevantes
-    let botConfig = await storage.getBotConfig();
+    let botConfig = await storage.getBotConfig(user.id);
     const botData = {
       botId: user.id,
       name: user.username,

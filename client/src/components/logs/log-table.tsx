@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { PaginationPageSize } from '@/components/ui/pagination';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
@@ -24,9 +25,10 @@ interface LogTableProps {
     offset: number;
   };
   onPageChange: (offset: number) => void;
+  onPageSizeChange: (limit: number) => void;
 }
 
-const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPageChange }) => {
+const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPageChange, onPageSizeChange }) => {
   const [selectedLog, setSelectedLog] = useState<CommandLog | null>(null);
 
   // Function to format the date
@@ -230,9 +232,16 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
         
         {pagination && logs.length > 0 && (
           <div className="mt-4 flex justify-between items-center">
-            <div className="text-sm text-discord-text-secondary">
-              Showing {Math.min(logs.length, limit)} of {total} logs
-              {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+            <div className="flex items-center space-x-4">
+              <PaginationPageSize
+                pageSize={limit}
+                onPageSizeChange={onPageSizeChange}
+                pageSizeOptions={[10, 25, 50, 100]}
+              />
+              <div className="text-sm text-discord-text-secondary">
+                Showing {Math.min(logs.length, limit)} of {total} logs
+                {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+              </div>
             </div>
             <div className="flex space-x-2">
               <Button

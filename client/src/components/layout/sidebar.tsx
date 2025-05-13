@@ -56,7 +56,6 @@ const Sidebar: React.FC<SidebarProps> = ({ botName = 'Discord Bot' }) => {
           <NavItem to="/config" icon="fas fa-cogs" label="Configuration" />
           <NavItem to="/commands" icon="fas fa-terminal" label="Commands" />
           <NavItem to="/logs" icon="fas fa-list" label="Logs" />
-          <NavItem to="/plugins" icon="fas fa-puzzle-piece" label="Plugins" />
         </ul>
       </nav>
       

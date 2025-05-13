@@ -13,20 +13,20 @@ import Plugins from "@/pages/plugins";
 import NotFound from "@/pages/not-found";
 
 import { useAuth } from "@/components/auth/auth-provider";
-import { useEffect, useState } from "react";
-import { apiRequest } from "./lib/queryClient";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 
 // Protected route component that redirects to login if not authenticated
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>, [key: string]: any }) {
   const { isAuthenticated, loading } = useAuth();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      setLocation("/login");
+      console.log('Protected route: Not authenticated, redirecting to login');
+      window.location.href = '/login';
     }
-  }, [isAuthenticated, loading, setLocation]);
+  }, [isAuthenticated, loading]);
   
   if (loading) {
     return (
@@ -49,20 +49,20 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
 }
 
 function Router() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [location] = useLocation();
   
   // If the user is on the root path, redirect them appropriately
   useEffect(() => {
-    if (location === '/') {
-      // If the user is authenticated, redirect to dashboard, otherwise to login
+    if (!loading && location === '/') {
+      console.log('Root path: Redirecting based on auth status:', isAuthenticated);
       if (isAuthenticated) {
         window.location.href = '/dashboard';
       } else {
         window.location.href = '/login';
       }
     }
-  }, [location, isAuthenticated]);
+  }, [location, isAuthenticated, loading]);
   
   return (
     <Switch>
@@ -77,15 +77,13 @@ function Router() {
   );
 }
 
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
         <Router />
+        <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
   );
 }
-
-export default App;

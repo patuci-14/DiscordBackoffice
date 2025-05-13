@@ -1,6 +1,6 @@
 import * as React from "react"
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { ButtonProps, buttonVariants } from "@/components/ui/button"
 
@@ -106,6 +106,39 @@ const PaginationEllipsis = ({
 )
 PaginationEllipsis.displayName = "PaginationEllipsis"
 
+const PaginationPageSize = ({
+  className,
+  pageSize,
+  onPageSizeChange,
+  pageSizeOptions = [10, 25, 50, 100],
+  ...props
+}: {
+  className?: string
+  pageSize: number
+  onPageSizeChange: (size: number) => void
+  pageSizeOptions?: number[]
+} & React.ComponentProps<"div">) => (
+  <div className={cn("flex items-center space-x-2", className)} {...props}>
+    <span className="text-sm text-muted-foreground">Rows per page</span>
+    <Select
+      value={pageSize.toString()}
+      onValueChange={(value) => onPageSizeChange(Number(value))}
+    >
+      <SelectTrigger className="h-8 w-[70px]">
+        <SelectValue placeholder={pageSize} />
+      </SelectTrigger>
+      <SelectContent>
+        {pageSizeOptions.map((size) => (
+          <SelectItem key={size} value={size.toString()}>
+            {size}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+)
+PaginationPageSize.displayName = "PaginationPageSize"
+
 export {
   Pagination,
   PaginationContent,
@@ -114,4 +147,5 @@ export {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
+  PaginationPageSize,
 }

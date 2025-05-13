@@ -24,59 +24,104 @@ const AuthContext = createContext<AuthContextType>({
   checkStatus: async () => {},
 });
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [botInfo, setBotInfo] = useState<AuthContextType['botInfo']>(null);
   const { toast } = useToast();
 
-  // Check authentication status on mount
+  // Check authentication status on mount with retry logic
   useEffect(() => {
+    let retryCount = 0;
+    let timeoutId: NodeJS.Timeout;
+
     const checkAuth = async () => {
       try {
         const { success, bot } = await checkAuthStatus();
-        setIsAuthenticated(success);
+        console.log('Auth check result:', { success, bot, retryCount });
+        
         if (success && bot) {
+          setIsAuthenticated(true);
           setBotInfo({
             name: bot.name,
             id: bot.id,
             avatar: bot.avatar,
           });
+          setLoading(false);
+        } else if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          console.log(`Retrying auth check (${retryCount}/${MAX_RETRIES})...`);
+          timeoutId = setTimeout(checkAuth, RETRY_DELAY);
+        } else {
+          setIsAuthenticated(false);
+          setBotInfo(null);
+          setLoading(false);
         }
       } catch (error) {
-        setIsAuthenticated(false);
-        setBotInfo(null);
-      } finally {
-        setLoading(false);
+        console.error('Auth check error:', error);
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          console.log(`Retrying auth check after error (${retryCount}/${MAX_RETRIES})...`);
+          timeoutId = setTimeout(checkAuth, RETRY_DELAY);
+        } else {
+          setIsAuthenticated(false);
+          setBotInfo(null);
+          setLoading(false);
+        }
       }
     };
 
     checkAuth();
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   const login = async (token: string): Promise<boolean> => {
+    console.log('Starting login process...');
     setLoading(true);
     try {
+      // Store token first
+      localStorage.setItem('botToken', token);
+      
       const { success, bot, error } = await loginWithToken(token);
+      console.log('Login response:', { success, bot, error });
       
       if (success && bot) {
-        setIsAuthenticated(true);
-        setBotInfo({
-          name: bot.name,
-          id: bot.id,
-          avatar: bot.avatar,
-        });
-        // Save botId in localStorage
-        localStorage.setItem('botId', bot.id);
-        toast({
-          title: 'Connected successfully',
-          description: `Bot ${bot.name} is now connected.`,
-        });
-        return true;
+        // Wait a bit to ensure the server has processed the login
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Double check the auth status
+        const { success: verifySuccess, bot: verifyBot } = await checkAuthStatus();
+        console.log('Verification after login:', { verifySuccess, verifyBot });
+        
+        if (verifySuccess && verifyBot) {
+          setIsAuthenticated(true);
+          setBotInfo({
+            name: verifyBot.name,
+            id: verifyBot.id,
+            avatar: verifyBot.avatar,
+          });
+          localStorage.setItem('botId', verifyBot.id);
+          toast({
+            title: 'Connected successfully',
+            description: `Bot ${verifyBot.name} is now connected.`,
+          });
+          return true;
+        } else {
+          throw new Error('Login verification failed');
+        }
       } else {
         setIsAuthenticated(false);
         setBotInfo(null);
         localStorage.removeItem('botId');
+        localStorage.removeItem('botToken');
         toast({
           title: 'Connection failed',
           description: error || 'Invalid token or connection failed.',
@@ -85,9 +130,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         return false;
       }
     } catch (error) {
+      console.error('Login error:', error);
       setIsAuthenticated(false);
       setBotInfo(null);
       localStorage.removeItem('botId');
+      localStorage.removeItem('botToken');
       toast({
         title: 'Connection error',
         description: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -108,6 +155,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setIsAuthenticated(false);
         setBotInfo(null);
         localStorage.removeItem('botId');
+        localStorage.removeItem('botToken');
         toast({
           title: 'Disconnected',
           description: 'Bot has been disconnected successfully.',
@@ -134,6 +182,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setLoading(true);
     try {
       const { success, bot } = await checkAuthStatus();
+      console.log('Status check result:', { success, bot });
       setIsAuthenticated(success);
       if (success && bot) {
         setBotInfo({
@@ -145,6 +194,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setBotInfo(null);
       }
     } catch (error) {
+      console.error('Status check error:', error);
       setIsAuthenticated(false);
       setBotInfo(null);
     } finally {

@@ -509,16 +509,27 @@ export class MemStorage implements IStorage {
         uptime: stats.uptime || "0%",
         lastUpdate: new Date()
       };
+      // Use a Map to ensure atomic updates
       this.botStats.set(stats.botId, newStats);
       return newStats;
+    }
+    
+    // Only update if there are actual changes or if lastUpdate is older than 1 minute
+    const lastUpdate = currentStats.lastUpdate || new Date();
+    const now = new Date();
+    const timeDiff = now.getTime() - lastUpdate.getTime();
+    
+    if (timeDiff < 60000 && !Object.keys(stats).some(key => key !== 'lastUpdate' && stats[key as keyof BotStat] !== currentStats[key as keyof BotStat])) {
+      return currentStats;
     }
     
     const updatedStats = {
       ...currentStats,
       ...stats,
-      lastUpdate: new Date()
+      lastUpdate: now
     };
     
+    // Use a Map to ensure atomic updates
     this.botStats.set(stats.botId, updatedStats);
     return updatedStats;
   }

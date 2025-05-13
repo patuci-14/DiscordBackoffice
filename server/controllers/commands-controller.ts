@@ -5,7 +5,7 @@ import { InsertCommand } from '@shared/schema';
 import { z } from 'zod';
 
 const commandValidator = z.object({
-  name: z.string().min(1).max(32),
+  name: z.string().min(1).max(32).transform(val => val.toLowerCase()),
   type: z.enum(['text', 'slash', 'embed']),
   response: z.string().optional(),
   description: z.string().nullable().optional(),
@@ -17,7 +17,7 @@ const commandValidator = z.object({
   logUsage: z.boolean(),
   active: z.boolean(),
   options: z.array(z.object({
-    name: z.string(),
+    name: z.string().transform(val => val.toLowerCase()),
     description: z.string(),
     type: z.enum(['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL', 'ROLE']),
     required: z.boolean()
@@ -119,11 +119,12 @@ export const createCommand = async (req: Request, res: Response) => {
     const commandData = {
       ...validation.data,
       botId: discordBot.getUser()?.id || "unknown",
-      response: validation.data.response ?? ''
+      response: validation.data.response ?? '',
+      name: validation.data.name.toLowerCase()
     };
     
     // Check if command already exists
-    const existingCommand = await storage.getCommandByName(commandData.botId, commandData.name);
+    const existingCommand = await storage.getCommandByName(commandData.botId, commandData.name.toLowerCase());
     
     if (existingCommand) {
       return res.status(409).json({ 
@@ -197,7 +198,7 @@ export const updateCommand = async (req: Request, res: Response) => {
     
     const updates: Partial<InsertCommand> = {};
     
-    if (name !== undefined) updates.name = name;
+    if (name !== undefined) updates.name = name.toLowerCase();
     if (type !== undefined) updates.type = type;
     if (response !== undefined) updates.response = response;
     if (description !== undefined) updates.description = description;
@@ -208,11 +209,16 @@ export const updateCommand = async (req: Request, res: Response) => {
     if (deleteUserMessage !== undefined) updates.deleteUserMessage = deleteUserMessage;
     if (logUsage !== undefined) updates.logUsage = logUsage;
     if (active !== undefined) updates.active = active;
-    if (options !== undefined) updates.options = options;
+    if (options !== undefined) {
+      updates.options = options.map((option: { name: string; description: string; type: string; required: boolean }) => ({
+        ...option,
+        name: option.name.toLowerCase()
+      }));
+    }
     
     // Check if name is being changed and if it already exists
-    if (name && name !== existingCommand.name) {
-      const commandWithName = await storage.getCommandByName(existingCommand.botId, name);
+    if (name && name.toLowerCase() !== existingCommand.name.toLowerCase()) {
+      const commandWithName = await storage.getCommandByName(existingCommand.botId, name.toLowerCase());
       
       if (commandWithName) {
         return res.status(409).json({ 

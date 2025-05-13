@@ -157,6 +157,26 @@ const Config: React.FC = () => {
     updateServerMutation.mutate({ id: serverId, update: { enabled } });
   };
 
+  // Invite server 
+  const createInviteLink = () => {
+
+      const copyText = "https://discord.com/oauth2/authorize?client_id=1305619506500206622&permissions=8&integration_type=0&scope=bot+applications.commands";
+    
+      navigator.clipboard.writeText(copyText)
+        .then(() => {
+          toast({
+            title: 'Link de convite copiado para a área de transferência',
+            description: '',
+          });
+        })
+        .catch(err => {
+          toast({
+            title: 'Erro ao copiar link de convite',
+            description: 'Por favor, tente novamente.',
+          });
+        });
+      
+  };
   // Handle save configuration
   const handleSaveConfig = () => {
     const configUpdate: Partial<BotConfig> = {
@@ -411,7 +431,7 @@ const Config: React.FC = () => {
           </div>
           
           <div className="mt-4 text-center">
-            <Button variant="link" className="text-discord-blurple text-sm hover:underline">
+            <Button variant="link" className="text-discord-blurple text-sm hover:underline" onClick={createInviteLink}>
               Invite Bot to New Server
             </Button>
           </div>

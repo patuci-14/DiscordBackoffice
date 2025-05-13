@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,16 +11,16 @@ const Login: React.FC = () => {
   const [showToken, setShowToken] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { login, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
+  const { login, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
 
-  // If already authenticated, redirect to dashboard
   useEffect(() => {
-    if (isAuthenticated) {
-      setLocation('/dashboard');
+    console.log('Login component mounted, auth status:', isAuthenticated);
+    if (!loading && isAuthenticated) {
+      console.log('User is authenticated, redirecting to dashboard...');
+      window.location.href = '/dashboard';
     }
-  }, [isAuthenticated, setLocation]);
+  }, [isAuthenticated, loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,11 +34,16 @@ const Login: React.FC = () => {
     setError(null);
     
     try {
+      console.log('Attempting login...');
       const success = await login(token);
+      console.log('Login attempt result:', success);
+      
       if (success) {
-        setLocation('/dashboard');
+        console.log('Login successful, waiting for state update...');
+        // The useEffect will handle the redirect when isAuthenticated changes
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError('An unexpected error occurred. Please try again.');
       toast({
         variant: 'destructive',
@@ -54,6 +58,19 @@ const Login: React.FC = () => {
   const toggleTokenVisibility = () => {
     setShowToken(!showToken);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-discord-bg-tertiary">
+        <div className="text-center">
+          <div className="inline-block">
+            <i className="fas fa-circle-notch spin text-4xl text-discord-blurple"></i>
+          </div>
+          <p className="mt-4 text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-discord-bg-tertiary">

@@ -4,18 +4,19 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Command } from '@shared/schema';
+import { PaginationPageSize } from '@/components/ui/pagination';
 
 interface CommandListProps {
   commands: Command[];
   isLoading: boolean;
-  onEdit: (id: number) => void;
+  onEdit: (commandId: string) => void;
 }
 
 const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(0);
-  const itemsPerPage = 5;
+  const [pageSize, setPageSize] = useState(5);
   
   // Filter commands based on search term and type
   const filteredCommands = commands.filter(command => {
@@ -26,12 +27,12 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
   
   // Paginate commands
   const paginatedCommands = filteredCommands.slice(
-    currentPage * itemsPerPage,
-    (currentPage + 1) * itemsPerPage
+    currentPage * pageSize,
+    (currentPage + 1) * pageSize
   );
   
   // Determine max pages
-  const maxPage = Math.max(0, Math.ceil(filteredCommands.length / itemsPerPage) - 1);
+  const maxPage = Math.max(0, Math.ceil(filteredCommands.length / pageSize) - 1);
   
   // Get command type badge class
   const getTypeBadgeClass = (type: string) => {
@@ -45,6 +46,11 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
       default:
         return 'bg-discord-blurple bg-opacity-20';
     }
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(0); // Reset to first page when changing page size
   };
 
   return (
@@ -204,10 +210,17 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
         </div>
         
         <div className="mt-4 flex justify-between items-center">
-          <div className="text-sm text-discord-text-secondary">
-            {filteredCommands.length > 0 && (
-              <>Showing {paginatedCommands.length} of {filteredCommands.length} commands</>
-            )}
+          <div className="flex items-center space-x-4">
+            <PaginationPageSize
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+              pageSizeOptions={[5, 10, 25, 50]}
+            />
+            <div className="text-sm text-discord-text-secondary">
+              {filteredCommands.length > 0 && (
+                <>Showing {paginatedCommands.length} of {filteredCommands.length} commands</>
+              )}
+            </div>
           </div>
           <div className="flex space-x-2">
             <Button
