@@ -19,8 +19,17 @@ const commandValidator = z.object({
   options: z.array(z.object({
     name: z.string().transform(val => val.toLowerCase()),
     description: z.string(),
-    type: z.enum(['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL', 'ROLE']),
-    required: z.boolean()
+    type: z.enum(['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL', 'ROLE', 'ATTACHMENT']),
+    required: z.boolean(),
+    autocomplete: z.object({
+      enabled: z.boolean(),
+      service: z.string(),
+      apiUrl: z.string().optional(),
+      apiMethod: z.enum(['GET', 'POST']).optional(),
+      apiHeaders: z.record(z.string()).optional(),
+      apiBody: z.record(z.any()).optional(),
+      parameters: z.record(z.any()).optional()
+    }).optional()
   })).optional()
 });
 

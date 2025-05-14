@@ -207,7 +207,7 @@ export type InsertCommand = z.infer<typeof insertCommandSchema>;
 // Command option types
 export type CommandOption = {
   name: string;
-  type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE' | 'NUMBER';
+  type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE' | 'NUMBER' | 'ATTACHMENT';
   description: string;
   required: boolean;
   autocomplete?: {

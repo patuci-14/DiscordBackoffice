@@ -32,7 +32,7 @@ import { CSS } from '@dnd-kit/utilities';
 interface CommandOption {
   name: string;
   description: string;
-  type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE';
+  type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE' | 'ATTACHMENT';
   required: boolean;
   autocomplete?: {
     enabled: boolean;
@@ -577,6 +577,7 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
               <SelectItem value="USER">User</SelectItem>
               <SelectItem value="CHANNEL">Channel</SelectItem>
               <SelectItem value="ROLE">Role</SelectItem>
+              <SelectItem value="ATTACHMENT">Attachment</SelectItem>
             </SelectContent>
           </Select>
         </div>

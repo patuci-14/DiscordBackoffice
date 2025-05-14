@@ -15,6 +15,8 @@ class DiscordBot {
   private token: string | null = null;
   private commands: Collection<string, Command> = new Collection();
   private startTime: Date | null = null;
+  private autocompleteCache: Map<string, { data: any[], timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 30000; // 30 seconds cache TTL
   
   private getChannelName(channel: Channel | null): string {
     if (!channel) return 'unknown';
@@ -535,43 +537,121 @@ class DiscordBot {
   }
   
   private async loadCommands() {
-    // Load commands from database
-    const botId = this.client.user?.id;
-    if (!botId) {
-      console.error('loadCommands: botId indefinido!');
-      return;
+    try {
+      console.log('Starting command loading process...');
+      
+      // Load commands from database
+      const botId = this.client.user?.id;
+      if (!botId) {
+        console.error('loadCommands: botId is undefined!');
+        return;
+      }
+      
+      console.log(`Fetching commands for botId: ${botId}`);
+      const dbCommands = await storage.getCommands(botId);
+      console.log(`Retrieved ${dbCommands.length} commands from database`);
+      
+      // Clear current commands
+      this.commands.clear();
+      console.log('Cleared existing commands collection');
+      
+      // Add commands to collection
+      for (const command of dbCommands) {
+        try {
+          console.log(`Processing command: ${command.name}`);
+          this.commands.set(command.name, command);
+        } catch (error) {
+          console.error(`Error processing command ${command.name}:`, error);
+        }
+      }
+      
+      console.log(`Successfully loaded ${this.commands.size} commands`);
+    } catch (error) {
+      console.error('Error in loadCommands:', error);
+      throw error;
     }
-    const dbCommands = await storage.getCommands(botId);
-    
-    // Clear current commands
-    this.commands.clear();
-    
-    // Add commands to collection
-    for (const command of dbCommands) {
-      this.commands.set(command.name, command);
-    }
-    
-    console.log(`Loaded ${this.commands.size} commands for botId ${botId}.`);
   }
   
   public async reloadCommands() {
-    await this.loadCommands();
+    console.log('Starting command reload process...');
     
-    // Clear existing commands before registering new ones
-    if (this.client.isReady() && this.client.user && this.token) {
-      try {
-        const rest = new REST({ version: '10' }).setToken(this.token);
-        await rest.put(
-          Routes.applicationCommands(this.client.user.id),
-          { body: [] }
-        );
-        console.log('Cleared existing slash commands');
-      } catch (error) {
-        console.error('Error clearing slash commands:', error);
-      }
+    if (!this.client.isReady() || !this.token) {
+      console.log('Cannot reload commands - bot is not ready or missing token');
+      return;
     }
-    
-    await this.registerSlashCommands();
+
+    try {
+      // Load commands from database
+      await this.loadCommands();
+      console.log(`Loaded ${this.commands.size} commands from database`);
+      
+      const rest = new REST({ version: '10' }).setToken(this.token);
+      
+      // Get active slash commands only
+      const commands = Array.from(this.commands.values()).filter(cmd => 
+        cmd.active && cmd.type === 'slash'
+      );
+      
+      console.log(`Found ${commands.length} active slash commands to register`);
+      
+      if (commands.length === 0) {
+        console.log('No active slash commands to register');
+        return;
+      }
+
+      // Format commands for registration - otimizado para ser mais rápido
+      console.log('Formatting commands for registration...');
+      const slashCommands = commands.map(cmd => {
+        const commandData = {
+          name: cmd.name.toLowerCase(),
+          description: cmd.description || `Run the ${cmd.name} command`,
+          type: ApplicationCommandType.ChatInput,
+        };
+
+        if (cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0) {
+          commandData.options = cmd.options.map(option => ({
+            name: option.name.toLowerCase().replace(/\s+/g, '_'),
+            description: option.description || `Option for ${cmd.name}`,
+            type: this.getApplicationCommandOptionType(option.type.toUpperCase()),
+            required: option.required === true,
+            autocomplete: option.autocomplete?.enabled || false
+          }));
+        }
+
+        return commandData;
+      });
+
+      console.log('Registering commands with Discord API...');
+      
+      // Configuração do REST para ser mais rápido
+      const restConfig = {
+        body: slashCommands,
+        timeout: 10000, // 10 segundos de timeout
+        headers: {
+          'Content-Type': 'application/json',
+          'X-RateLimit-Precision': 'millisecond'
+        }
+      };
+
+      // Registra os comandos em uma única chamada
+      const response = await rest.put(
+        Routes.applicationCommands(this.client.user!.id),
+        restConfig
+      );
+
+      console.log(`Successfully registered ${slashCommands.length} commands`);
+      return response;
+    } catch (error) {
+      console.error('Error during command reload:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
+      throw error;
+    }
   }
   
   public async updateStatus(status: string, activity?: string, activityType?: string) {
@@ -591,67 +671,107 @@ class DiscordBot {
    * Handle autocomplete interactions
    */
   private async handleAutocomplete(interaction: AutocompleteInteraction) {
-    const command = this.commands.get(interaction.commandName);
-    if (!command) {
-      console.log(`Autocomplete: comando "${interaction.commandName}" não encontrado`);
-      return;
-    }
-
-    const focusedOption = interaction.options.getFocused(true);
-    console.log('Autocomplete interaction:', {
-      commandName: interaction.commandName,
-      focusedOption,
-      commandOptionsType: typeof command.options,
-      commandOptionsIsArray: Array.isArray(command.options),
-      commandOptionsKeys: command.options ? Object.keys(command.options) : []
-    });
-
-    // Busca a opção de forma mais robusta
-    let option: CommandOption | undefined;
-    
-    if (Array.isArray(command.options)) {
-      // Se options for um array, busca pelo nome (case insensitive)
-      option = command.options.find(opt => 
-        opt.name.toLowerCase() === focusedOption.name.toLowerCase()
-      );
-      console.log(`Opção encontrada no array: ${option ? 'Sim' : 'Não'}`);
-    } else if (command.options && typeof command.options === 'object') {
-      // Se options for um objeto, tenta acessar diretamente
-      option = command.options[focusedOption.name] as CommandOption;
-      console.log(`Opção encontrada no objeto: ${option ? 'Sim' : 'Não'}`);
-    }
-    
-    if (!option) {
-      console.log('Nenhuma opção encontrada para autocomplete');
-      return;
-    }
-
-    if (!option.autocomplete?.enabled) {
-      console.log('Autocomplete não está habilitado para esta opção');
-      return;
-    }
-
-    console.log('Configuração de autocomplete:', {
-      enabled: option.autocomplete.enabled,
-      service: option.autocomplete.service,
-      apiUrl: option.autocomplete.apiUrl
-    });
-
     try {
-      // Aqui você pode implementar a lógica para buscar as sugestões
-      // baseado no serviço especificado em option.autocomplete.service
-      const suggestions = await this.getAutocompleteSuggestions(command, option, focusedOption.value);
-      console.log(`Retornando ${suggestions.length} sugestões para o Discord`);
+      // Verifica se a interação ainda é válida
+      if (!interaction.isAutocomplete()) {
+        console.log('Interaction is not an autocomplete');
+        return;
+      }
 
-      await interaction.respond(
-        suggestions.map(suggestion => ({
-          name: suggestion.name,
-          value: suggestion.value
-        }))
-      );
+      // Verifica se o bot está pronto
+      if (!this.client.isReady()) {
+        console.log('Bot is not ready');
+        return;
+      }
+
+      console.log('Handling autocomplete interaction...');
+      const command = this.commands.get(interaction.commandName);
+      if (!command) {
+        console.log(`Autocomplete: command "${interaction.commandName}" not found`);
+        return;
+      }
+
+      const focusedOption = interaction.options.getFocused(true);
+      console.log('Processing autocomplete for:', {
+        commandName: interaction.commandName,
+        focusedOption: focusedOption.name,
+        value: focusedOption.value
+      });
+
+      // Busca a opção de forma mais robusta
+      let option: CommandOption | undefined;
+      
+      if (Array.isArray(command.options)) {
+        option = command.options.find(opt => 
+          opt.name.toLowerCase() === focusedOption.name.toLowerCase()
+        );
+        console.log(`Option found in array: ${option ? 'Yes' : 'No'}`);
+      } else if (command.options && typeof command.options === 'object') {
+        option = command.options[focusedOption.name] as CommandOption;
+        console.log(`Option found in object: ${option ? 'Yes' : 'No'}`);
+      }
+      
+      if (!option) {
+        console.log('No option found for autocomplete');
+        return;
+      }
+
+      if (!option.autocomplete?.enabled) {
+        console.log('Autocomplete not enabled for this option');
+        return;
+      }
+
+      // Verifica se a interação ainda é válida antes de buscar sugestões
+      if (!interaction.isAutocomplete()) {
+        console.log('Interaction expired before getting suggestions');
+        return;
+      }
+
+      console.log('Getting autocomplete suggestions...');
+      const suggestions = await this.getAutocompleteSuggestions(command, option, focusedOption.value);
+      console.log(`Retrieved ${suggestions.length} suggestions`);
+
+      // Verifica se a interação ainda é válida antes de responder
+      if (!interaction.isAutocomplete()) {
+        console.log('Interaction expired before responding');
+        return;
+      }
+
+      // Adiciona um timeout de 1.5 segundos para garantir que respondemos antes do limite do Discord
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Autocomplete timeout')), 1500);
+      });
+
+      console.log('Responding to autocomplete interaction...');
+      await Promise.race([
+        interaction.respond(
+          suggestions.map(suggestion => ({
+            name: suggestion.name,
+            value: suggestion.value
+          }))
+        ),
+        timeoutPromise
+      ]);
+      console.log('Successfully responded to autocomplete interaction');
     } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Autocomplete timeout') {
+          console.log('Autocomplete timeout - could not respond in time');
+          return;
+        }
+        if (error.message.includes('Unknown interaction')) {
+          console.log('Interaction expired - could not respond in time');
+          return;
+        }
+      }
       console.error('Error handling autocomplete:', error);
-      await interaction.respond([]);
+      try {
+        if (interaction.isAutocomplete()) {
+          await interaction.respond([]);
+        }
+      } catch (e) {
+        console.log('Could not respond to interaction after error');
+      }
     }
   }
 
@@ -663,10 +783,18 @@ class DiscordBot {
     option: CommandOption,
     input: string
   ): Promise<Array<{ name: string; value: string }>> {
+    const cacheKey = `${command.name}_${option.name}_${input}`;
+    const cached = this.autocompleteCache.get(cacheKey);
+    
+    // Check cache first
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      console.log('Using cached autocomplete suggestions');
+      return cached.data;
+    }
+
     // Se tiver uma URL de API configurada, usa ela
     if (option.autocomplete?.apiUrl) {
-      console.log(`Buscando sugestões da API externa: ${option.autocomplete.apiUrl}`);
-      console.log(`Método: ${option.autocomplete.apiMethod || 'GET'}, Input: ${input}`);
+      console.log(`Fetching suggestions from external API: ${option.autocomplete.apiUrl}`);
       
       try {
         const requestConfig = {
@@ -683,75 +811,65 @@ class DiscordBot {
             input,
             botId: this.client.user?.id
           } : undefined,
-          timeout: 2500 // Timeout de 2.5 segundos para evitar atrasos longos
+          timeout: 1500 // Reduced timeout to 1.5 seconds
         };
-        
-        console.log('Configuração da requisição:', JSON.stringify(requestConfig, null, 2));
         
         const response = await axios(requestConfig);
         
-        console.log(`Resposta da API (status ${response.status}):`, 
-          typeof response.data === 'object' ? 
-            JSON.stringify(response.data).substring(0, 200) + '...' : 
-            response.data
-        );
-
-        // Espera que a API retorne um array de objetos com name e value
+        let suggestions: Array<{ name: string; value: string }> = [];
+        
+        // Process response data
         if (Array.isArray(response.data)) {
-          const validSuggestions = response.data
+          suggestions = response.data
             .filter(item => item && item.name && item.value)
             .slice(0, 25);
-            
-          console.log(`Encontradas ${validSuggestions.length} sugestões válidas`);
-          return validSuggestions;
-        }
-        
-        // Se a API retornar um formato diferente, tenta adaptar
-        if (typeof response.data === 'object' && response.data !== null) {
-          const adaptedSuggestions = Object.entries(response.data)
+        } else if (typeof response.data === 'object' && response.data !== null) {
+          suggestions = Object.entries(response.data)
             .map(([key, value]) => ({
               name: String(value),
               value: key
             }))
             .slice(0, 25);
-            
-          console.log(`Adaptadas ${adaptedSuggestions.length} sugestões do formato de objeto`);
-          return adaptedSuggestions;
         }
 
-        console.log('Formato de resposta não reconhecido, retornando array vazio');
-        return [];
+        // Cache the results
+        this.autocompleteCache.set(cacheKey, {
+          data: suggestions,
+          timestamp: Date.now()
+        });
+        
+        return suggestions;
       } catch (error) {
-        if (axios.isAxiosError(error)) {
-          console.error('Erro na chamada à API de autocomplete:', {
-            message: error.message,
-            status: error.response?.status,
-            data: error.response?.data,
-            url: option.autocomplete.apiUrl
-          });
-        } else {
-          console.error('Erro desconhecido na chamada à API de autocomplete:', error);
-        }
+        console.error('Error fetching autocomplete suggestions:', error);
         return [];
       }
     }
 
-    console.log(`Usando serviço interno: ${option.autocomplete?.service}`);
-    
     // Se não tiver URL de API, usa os serviços internos
+    let suggestions: Array<{ name: string; value: string }> = [];
+    
     switch (option.autocomplete?.service) {
       case 'servers':
-        return this.getServerSuggestions(input);
+        suggestions = await this.getServerSuggestions(input);
+        break;
       case 'channels':
-        return this.getChannelSuggestions(input);
+        suggestions = await this.getChannelSuggestions(input);
+        break;
       case 'roles':
-        return this.getRoleSuggestions(input);
+        suggestions = await this.getRoleSuggestions(input);
+        break;
       case 'users':
-        return this.getUserSuggestions(input);
-      default:
-        console.log(`Serviço não reconhecido: ${option.autocomplete?.service}`);
-        return [];
+        suggestions = await this.getUserSuggestions(input);
+        break;
     }
+
+    // Cache the results
+    this.autocompleteCache.set(cacheKey, {
+      data: suggestions,
+      timestamp: Date.now()
+    });
+
+    return suggestions;
   }
 
   private async getServerSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
@@ -815,10 +933,13 @@ class DiscordBot {
    * Register slash commands with Discord API
    */
   private async registerSlashCommands() {
-    if (!this.client.isReady() || !this.token) return;
+    if (!this.client.isReady() || !this.token) {
+      console.log('Cannot register slash commands - bot is not ready or missing token');
+      return;
+    }
     
     try {
-      console.log('Registering slash commands...');
+      console.log('Starting slash command registration...');
       
       const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
       if (!botConfig || !botConfig.useSlashCommands) {
@@ -838,10 +959,10 @@ class DiscordBot {
       
       console.log(`Found ${commands.length} active slash commands to register.`);
       
-      // Create the REST API instance with non-null token
+      // Create the REST API instance
       const rest = new REST({ version: '10' }).setToken(this.token);
       
-      // Format commands for registration with detailed logging
+      // Format commands for registration
       const slashCommands = commands.map(cmd => {
         console.log(`\nPreparing slash command: "${cmd.name}"`);
         
@@ -853,17 +974,11 @@ class DiscordBot {
         
         // Add options if defined
         if (cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0) {
-          console.log(`Command "${cmd.name}" has ${cmd.options.length} options:`, JSON.stringify(cmd.options, null, 2));
+          console.log(`Command "${cmd.name}" has ${cmd.options.length} options`);
           
           commandData.options = cmd.options.map(option => {
-            // Ensure option name follows Discord requirements
             const optionName = option.name.toLowerCase().replace(/\s+/g, '_');
-            
-            // Determine if option is required - explicitly convert to boolean
-            let isRequired = false;
-            if (option.required === true) {
-              isRequired = true;
-            }
+            const isRequired = option.required === true;
             
             console.log(`Processing option "${optionName}":
   - type: ${option.type}
@@ -871,17 +986,13 @@ class DiscordBot {
   - description: ${option.description || `Option for ${cmd.name}`}
   - autocomplete: ${option.autocomplete?.enabled ? 'enabled' : 'disabled'}`);
             
-            const optionData = {
+            return {
               name: optionName,
               description: option.description || `Option for ${cmd.name}`,
               type: this.getApplicationCommandOptionType(option.type.toUpperCase()),
               required: isRequired,
               autocomplete: option.autocomplete?.enabled || false
             };
-            
-            console.log(`Option formatted as: ${JSON.stringify(optionData)}`);
-            
-            return optionData;
           });
         }
         
@@ -889,19 +1000,19 @@ class DiscordBot {
       });
       
       console.log(`\nRegistering ${slashCommands.length} slash commands...`);
-      console.log(`Full slash commands data: ${JSON.stringify(slashCommands, null, 2)}`);
       
       if (this.client.user) {
-        // Register commands globally (available in all servers)
-        await rest.put(
+        // Register commands globally
+        const response = await rest.put(
           Routes.applicationCommands(this.client.user.id),
           { body: slashCommands }
         );
         
-        console.log('Successfully registered application commands.');
+        console.log('Successfully registered application commands:', response);
       }
     } catch (error) {
       console.error('Error registering slash commands:', error);
+      throw error; // Re-throw to handle it in the calling code
     }
   }
   
@@ -1008,10 +1119,13 @@ class DiscordBot {
             optionValue = user ? user.username : '';
           } else if (option.type.toUpperCase() === 'CHANNEL') {
             const channel = interaction.options.getChannel(optionName);
-            optionValue = channel ? channel.name : '';
+            optionValue = channel ? channel.name || '' : '';
           } else if (option.type.toUpperCase() === 'ROLE') {
             const role = interaction.options.getRole(optionName);
             optionValue = role ? role.name : '';
+          } else if (option.type.toUpperCase() === 'ATTACHMENT') {
+            const attachment = interaction.options.getAttachment(optionName);
+            optionValue = attachment ? attachment.url : '';
           }
           
           // Replace the placeholder in the response
@@ -1076,7 +1190,13 @@ class DiscordBot {
           if (interaction.options && interaction.options.data.length > 0) {
             webhookPayload.options = {};
             interaction.options.data.forEach(option => {
-              webhookPayload.options[option.name] = option.value;
+              let value = option.value;
+              // Se for attachment, pega a URL
+              if (option.type === 11) { // 11 = ATTACHMENT
+                const attachment = interaction.options.getAttachment(option.name);
+                value = attachment ? attachment.url : value;
+              }
+              webhookPayload.options[option.name] = value;
             });
           }
 
@@ -1212,9 +1332,8 @@ class DiscordBot {
    * Convert string option type to Discord.js ApplicationCommandOptionType
    */
   private getApplicationCommandOptionType(type: string): number {
-    // These values match Discord's API requirements
-    // https://discord.com/developers/docs/interactions/application-commands#application-command-object-application-command-option-type
-    const ApplicationCommandOptionType = {
+    // Cache dos tipos para evitar conversões repetidas
+    const typeCache: { [key: string]: number } = {
       'STRING': 3,
       'INTEGER': 4,
       'BOOLEAN': 5,
@@ -1226,7 +1345,7 @@ class DiscordBot {
       'ATTACHMENT': 11
     };
     
-    return ApplicationCommandOptionType[type as keyof typeof ApplicationCommandOptionType] || 3; // Default to STRING
+    return typeCache[type] || 3; // Default to STRING
   }
 
   private async createCommandLogEntry(
