@@ -96,6 +96,9 @@ export const commands = pgTable("commands", {
   active: boolean("active").default(true),
   usageCount: integer("usage_count").default(0),
   options: json("options").default({}), // Store slash command options
+  requireConfirmation: boolean("require_confirmation").default(false),
+  confirmationMessage: text("confirmation_message"),
+  cancelMessage: text("cancel_message"),
 });
 
 export const insertCommandSchema = createInsertSchema(commands).pick({
@@ -112,6 +115,9 @@ export const insertCommandSchema = createInsertSchema(commands).pick({
   logUsage: true,
   active: true,
   options: true,
+  requireConfirmation: true,
+  confirmationMessage: true,
+  cancelMessage: true,
 });
 
 // Command Logs

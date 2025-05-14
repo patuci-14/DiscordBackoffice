@@ -157,7 +157,7 @@ const Config: React.FC = () => {
     updateServerMutation.mutate({ id: serverId, update: { enabled } });
   };
 
-  // Invite server 
+  // Create invite link
   const createInviteLink = () => {
 
       const copyText = "https://discord.com/oauth2/authorize?client_id=1305619506500206622&permissions=8&integration_type=0&scope=bot+applications.commands";
@@ -177,6 +177,7 @@ const Config: React.FC = () => {
         });
       
   };
+
   // Handle save configuration
   const handleSaveConfig = () => {
     const configUpdate: Partial<BotConfig> = {

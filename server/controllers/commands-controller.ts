@@ -16,6 +16,9 @@ const commandValidator = z.object({
   deleteUserMessage: z.boolean(),
   logUsage: z.boolean(),
   active: z.boolean(),
+  requireConfirmation: z.boolean().optional(),
+  confirmationMessage: z.string().nullable().optional(),
+  cancelMessage: z.string().nullable().optional(),
   options: z.array(z.object({
     name: z.string().transform(val => val.toLowerCase()),
     description: z.string(),
@@ -202,7 +205,7 @@ export const updateCommand = async (req: Request, res: Response) => {
     const { 
       name, type, response, description, webhookUrl, requiredPermission, 
       cooldown, enabledForAllServers, deleteUserMessage, 
-      logUsage, active, options
+      logUsage, active, options, requireConfirmation, confirmationMessage, cancelMessage
     } = req.body;
     
     const updates: Partial<InsertCommand> = {};
@@ -218,6 +221,9 @@ export const updateCommand = async (req: Request, res: Response) => {
     if (deleteUserMessage !== undefined) updates.deleteUserMessage = deleteUserMessage;
     if (logUsage !== undefined) updates.logUsage = logUsage;
     if (active !== undefined) updates.active = active;
+    if (requireConfirmation !== undefined) updates.requireConfirmation = requireConfirmation;
+    if (confirmationMessage !== undefined) updates.confirmationMessage = confirmationMessage;
+    if (cancelMessage !== undefined) updates.cancelMessage = cancelMessage;
     if (options !== undefined) {
       updates.options = options.map((option: { name: string; description: string; type: string; required: boolean }) => ({
         ...option,

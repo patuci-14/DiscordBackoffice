@@ -28,6 +28,19 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// Define custom types that include confirmation fields
+type CommandWithConfirmation = Command & {
+  requireConfirmation?: boolean | null;
+  confirmationMessage?: string | null;
+  cancelMessage?: string | null;
+};
+
+type InsertCommandWithConfirmation = InsertCommand & {
+  requireConfirmation?: boolean | null;
+  confirmationMessage?: string | null;
+  cancelMessage?: string | null;
+};
+
 // Define the structure for slash command options
 interface CommandOption {
   name: string;
@@ -45,7 +58,7 @@ interface CommandOption {
 }
 
 interface CommandFormProps {
-  command?: Command | InsertCommand;
+  command?: Command;
   isEditing: boolean;
   onClose: () => void;
 }
@@ -67,6 +80,11 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   const [active, setActive] = useState(true);
   const [options, setOptions] = useState<CommandOption[]>([]);
   const [showOptionsPanel, setShowOptionsPanel] = useState(false);
+  
+  // Add confirmation settings
+  const [requireConfirmation, setRequireConfirmation] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState('Are you sure you want to proceed with this action?');
+  const [cancelMessage, setCancelMessage] = useState('Action cancelled.');
   
   // Adicionar botId do localStorage (ou contexto)
   const botId = localStorage.getItem('botId') || '';
@@ -93,12 +111,23 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
           setShowOptionsPanel(true);
         }
       }
+      
+      // Set confirmation settings if available
+      if ('requireConfirmation' in command) {
+        setRequireConfirmation(Boolean(command.requireConfirmation));
+        if (command.confirmationMessage) {
+          setConfirmationMessage(command.confirmationMessage);
+        }
+        if (command.cancelMessage) {
+          setCancelMessage(command.cancelMessage);
+        }
+      }
     }
   }, [command]);
   
   // Create command mutation
   const createCommandMutation = useMutation({
-    mutationFn: (newCommand: InsertCommand) => createCommand(newCommand),
+    mutationFn: (newCommand: InsertCommandWithConfirmation) => createCommand(newCommand as any),
     onSuccess: () => {
       toast({
         title: 'Command Created',
@@ -118,7 +147,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   
   // Update command mutation
   const updateCommandMutation = useMutation({
-    mutationFn: ({ id, update }: { id: number, update: Partial<Command> }) => updateCommand(id, update),
+    mutationFn: ({ id, update }: { id: number, update: Partial<CommandWithConfirmation> }) => updateCommand(id, update as any),
     onSuccess: () => {
       toast({
         title: 'Command Updated',
@@ -190,7 +219,8 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       return;
     }
     
-    const commandData: InsertCommand = {
+    // Create the command data with type assertion to include confirmation fields
+    const commandData = {
       botId,
       name,
       type,
@@ -203,13 +233,16 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       deleteUserMessage,
       logUsage,
       active,
-      options: type === 'slash' && options.length > 0 ? options : []
+      options: type === 'slash' && options.length > 0 ? options : [],
+      requireConfirmation,
+      confirmationMessage: requireConfirmation ? confirmationMessage : null,
+      cancelMessage: requireConfirmation ? cancelMessage : null
     };
     
     if (isEditing && command && 'id' in command) {
-      updateCommandMutation.mutate({ id: command.id, update: commandData });
+      updateCommandMutation.mutate({ id: command.id, update: commandData as any });
     } else {
-      createCommandMutation.mutate(commandData);
+      createCommandMutation.mutate(commandData as any);
     }
   };
   
@@ -404,6 +437,46 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
               onChange={setActive}
               label="Command active"
             />
+            
+            {/* Add confirmation toggle and settings */}
+            <div className="pt-2 border-t border-gray-700">
+              <ToggleSwitch
+                checked={requireConfirmation}
+                onChange={(checked) => {
+                  setRequireConfirmation(checked);
+                }}
+                label="Require confirmation before executing command"
+              />
+              
+              {requireConfirmation && (
+                <div className="mt-3 ml-6 space-y-3">
+                  <div>
+                    <Label className="block text-discord-text-secondary text-xs mb-1">Confirmation Message</Label>
+                    <Textarea
+                      value={confirmationMessage}
+                      onChange={(e) => setConfirmationMessage(e.target.value)}
+                      placeholder="Are you sure you want to proceed with this action?"
+                      className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                      rows={3}
+                    />
+                    <p className="text-xs text-discord-text-secondary mt-1">
+                      You can use {'{user}'} for the user's name, {'{server}'} for the server name, and {'{params}'} to include all command parameters.
+                      <br />
+                      For specific parameters, use {'{param:name}'} where "name" is the parameter name.
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="block text-discord-text-secondary text-xs mb-1">Cancel Message</Label>
+                    <Input
+                      value={cancelMessage}
+                      onChange={(e) => setCancelMessage(e.target.value)}
+                      placeholder="Action cancelled."
+                      className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
