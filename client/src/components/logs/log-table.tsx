@@ -93,175 +93,112 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
   return (
     <Card className="bg-discord-bg-secondary rounded-lg shadow">
       <CardContent className="p-4">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Timestamp</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Server</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Channel</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">User</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Command</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Status</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Callback</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Parâmetros</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {isLoading ? (
-                Array(6).fill(0).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-4 py-3">
-                      <div className="h-4 bg-discord-bg-tertiary rounded w-32"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 bg-discord-bg-tertiary rounded w-28"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 bg-discord-bg-tertiary rounded w-20"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 bg-discord-bg-tertiary rounded w-24"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 bg-discord-bg-tertiary rounded w-16"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 bg-discord-bg-tertiary rounded w-20"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-4 bg-discord-bg-tertiary rounded w-24"></div>
-                    </td>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-discord-blurple"></div>
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-8 text-discord-text-secondary">
+            No logs found
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-700">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Timestamp</th>
+                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Server</th>
+                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Channel</th>
+                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">User</th>
+                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Command</th>
+                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Status</th>
+                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Callback</th>
+                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Parâmetros</th>
                   </tr>
-                ))
-              ) : logs.length > 0 ? (
-                logs.map((log, index) => (
-                  <tr key={index} className="hover:bg-discord-bg-tertiary">
-                    <td className="px-4 py-3 text-sm">{formatDate(log.timestamp)}</td>
-                    <td className="px-4 py-3 text-sm">{log.serverName}</td>
-                    <td className="px-4 py-3 text-sm">#{log.channelName}</td>
-                    <td className="px-4 py-3 text-sm">{log.username}</td>
-                    <td className="px-4 py-3 text-sm font-mono">{log.commandName}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-0.5 ${getStatusBadgeClass(log.status)} rounded-full text-xs`}>
-                        {log.status === 'success' ? 'Success' : 
-                         log.status === 'failed' ? 'Failed' : 
-                         log.status === 'permission_denied' ? 'Permission Denied' : 
-                         log.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {log.callbackStatus ? (
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {logs.map((log, index) => (
+                    <tr key={log.id || index} className="hover:bg-discord-bg-tertiary">
+                      <td className="px-4 py-2 text-sm whitespace-nowrap">{formatDate(log.timestamp)}</td>
+                      <td className="px-4 py-2 text-sm whitespace-nowrap">{log.serverName}</td>
+                      <td className="px-4 py-2 text-sm whitespace-nowrap">{log.channelName}</td>
+                      <td className="px-4 py-2 text-sm whitespace-nowrap">{log.username}</td>
+                      <td className="px-4 py-2 text-sm whitespace-nowrap">{log.commandName}</td>
+                      <td className="px-4 py-2 text-sm whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded text-xs ${getStatusBadgeClass(log.status || '')}`}>
+                          {log.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded text-xs ${getCallbackStatusBadgeClass(log.callbackStatus || '')}`}>
+                          {log.callbackStatus || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm">
                         <Dialog>
                           <DialogTrigger asChild>
-                            <span className={`px-2 py-0.5 ${getCallbackStatusBadgeClass(log.callbackStatus)} rounded-full text-xs cursor-pointer`}>
-                              {log.callbackStatus === 'success' ? 'Success' :
-                               log.callbackStatus === 'failed' ? 'Failed' :
-                               log.callbackStatus === 'pending' ? 'Pending' :
-                               log.callbackStatus}
-                            </span>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <i className="fas fa-eye"></i>
+                            </Button>
                           </DialogTrigger>
-                          <DialogContent className="bg-discord-bg-secondary border border-gray-700">
+                          <DialogContent>
                             <DialogHeader>
-                              <DialogTitle className="text-discord-text-primary">Callback Details</DialogTitle>
+                              <DialogTitle>Command Parameters</DialogTitle>
                             </DialogHeader>
-                            <div className="mt-4">
-                              <div className="space-y-2">
-                                <div>
-                                  <span className="text-discord-text-secondary">Status: </span>
-                                  <span className="text-discord-text-primary">{log.callbackStatus}</span>
+                            <div className="grid gap-4 py-4">
+                              <pre className="whitespace-pre-wrap bg-discord-bg-tertiary p-4 rounded-md">
+                                {formatParameters(log.parameters as Record<string, any> | null | undefined)}
+                              </pre>
+                              {log.callbackError && (
+                                <div className="text-discord-red">
+                                  <strong>Error:</strong> {log.callbackError}
                                 </div>
-                                {log.callbackTimestamp && (
-                                  <div>
-                                    <span className="text-discord-text-secondary">Timestamp: </span>
-                                    <span className="text-discord-text-primary">{formatDate(log.callbackTimestamp as Date)}</span>
-                                  </div>
-                                )}
-                                {log.callbackError && (
-                                  <div>
-                                    <span className="text-discord-text-secondary">Error: </span>
-                                    <pre className="mt-2 bg-discord-bg-tertiary p-4 rounded-lg whitespace-pre-wrap text-discord-text-primary border border-gray-700">
-                                      {log.callbackError}
-                                    </pre>
-                                  </div>
-                                )}
-                              </div>
+                              )}
                             </div>
                           </DialogContent>
                         </Dialog>
-                      ) : (
-                        <span className="text-discord-text-secondary">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="bg-discord-bg-tertiary hover:bg-discord-bg-primary text-discord-text-secondary hover:text-discord-white px-3 py-1 text-sm"
-                            onClick={() => setSelectedLog(log)}
-                          >
-                            <i className="fas fa-eye mr-2"></i>
-                            Ver Parâmetros
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="bg-discord-bg-secondary border border-gray-700">
-                          <DialogHeader>
-                            <DialogTitle className="text-discord-text-primary">Parâmetros do Comando</DialogTitle>
-                          </DialogHeader>
-                          <div className="mt-4">
-                            <pre className="bg-discord-bg-tertiary p-4 rounded-lg whitespace-pre-wrap text-discord-text-primary border border-gray-700">
-                              {formatParameters(log.parameters as Record<string, any>)}
-                            </pre>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="px-4 py-4 text-center text-discord-text-secondary">
-                    No logs found. Try adjusting your filters or run some commands to generate logs.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {pagination && logs.length > 0 && (
-          <div className="mt-4 flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <PaginationPageSize
-                pageSize={limit}
-                onPageSizeChange={onPageSizeChange}
-                pageSizeOptions={[10, 25, 50, 100]}
-              />
-              <div className="text-sm text-discord-text-secondary">
-                Showing {Math.min(logs.length, limit)} of {total} logs
-                {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="mt-4 flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <PaginationPageSize
+                  pageSize={limit}
+                  onPageSizeChange={onPageSizeChange}
+                  pageSizeOptions={[10, 25, 50, 100]}
+                />
+                <div className="text-sm text-discord-text-secondary">
+                  Showing {offset + 1} to {Math.min(offset + logs.length, total)} of {total} logs
+                  {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  disabled={!hasPrevious}
+                  onClick={() => goToPage(Math.max(0, offset - limit))}
+                  className="px-3 py-1 bg-discord-bg-tertiary rounded text-sm text-discord-text-secondary"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant={hasNext ? "default" : "outline"}
+                  disabled={!hasNext}
+                  onClick={() => goToPage(offset + limit)}
+                  className={`px-3 py-1 rounded text-sm ${hasNext ? 'bg-discord-blurple' : 'bg-discord-bg-tertiary text-discord-text-secondary'}`}
+                >
+                  Next
+                </Button>
               </div>
             </div>
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                disabled={!hasPrevious}
-                onClick={() => goToPage(Math.max(0, offset - limit))}
-                className="px-3 py-1 bg-discord-bg-tertiary rounded text-sm text-discord-text-secondary"
-              >
-                Previous
-              </Button>
-              <Button
-                variant={hasNext ? "default" : "outline"}
-                disabled={!hasNext}
-                onClick={() => goToPage(offset + limit)}
-                className={`px-3 py-1 rounded text-sm ${hasNext ? 'bg-discord-blurple' : 'bg-discord-bg-tertiary text-discord-text-secondary'}`}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          </>
         )}
       </CardContent>
     </Card>

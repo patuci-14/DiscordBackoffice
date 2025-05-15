@@ -463,6 +463,8 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                       You can use {'{user}'} for the user's name, {'{server}'} for the server name, and {'{params}'} to include all command parameters.
                       <br />
                       For specific parameters, use {'{param:name}'} where "name" is the parameter name.
+                      <br />
+                      For file attachments, you can use {'{param:file.name}'}, {'{param:file.extension}'}, {'{param:file.url}'}, and {'{param:file.size}'}.
                     </p>
                   </div>
                   <div>

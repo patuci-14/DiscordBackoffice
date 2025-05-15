@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import {
@@ -184,33 +184,57 @@ export class DbStorage implements IStorage {
   async getCommandLogs(botId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return await db.select().from(commandLogs)
       .where(eq(commandLogs.botId, botId))
-      .orderBy(commandLogs.timestamp)
+      .orderBy(desc(commandLogs.timestamp))
       .limit(limit)
       .offset(offset);
+  }
+
+  async getCommandLogsCount(botId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(commandLogs)
+      .where(eq(commandLogs.botId, botId));
+    return Number(result[0].count);
   }
 
   async getCommandLogsByServer(botId: string, serverId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return await db.select().from(commandLogs)
       .where(and(eq(commandLogs.botId, botId), eq(commandLogs.serverId, serverId)))
-      .orderBy(commandLogs.timestamp)
+      .orderBy(desc(commandLogs.timestamp))
       .limit(limit)
       .offset(offset);
+  }
+
+  async getCommandLogsByServerCount(botId: string, serverId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(commandLogs)
+      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.serverId, serverId)));
+    return Number(result[0].count);
   }
 
   async getCommandLogsByUser(botId: string, userId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return await db.select().from(commandLogs)
       .where(and(eq(commandLogs.botId, botId), eq(commandLogs.userId, userId)))
-      .orderBy(commandLogs.timestamp)
+      .orderBy(desc(commandLogs.timestamp))
       .limit(limit)
       .offset(offset);
+  }
+
+  async getCommandLogsByUserCount(botId: string, userId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(commandLogs)
+      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.userId, userId)));
+    return Number(result[0].count);
   }
 
   async getCommandLogsByCommand(botId: string, commandName: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return await db.select().from(commandLogs)
       .where(and(eq(commandLogs.botId, botId), eq(commandLogs.commandName, commandName)))
-      .orderBy(commandLogs.timestamp)
+      .orderBy(desc(commandLogs.timestamp))
       .limit(limit)
       .offset(offset);
+  }
+
+  async getCommandLogsByCommandCount(botId: string, commandName: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(commandLogs)
+      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.commandName, commandName)));
+    return Number(result[0].count);
   }
 
   async createCommandLog(log: InsertCommandLog): Promise<CommandLog> {

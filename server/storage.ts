@@ -40,9 +40,13 @@ export interface IStorage {
 
   // Command logs
   getCommandLogs(botId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
+  getCommandLogsCount(botId: string): Promise<number>;
   getCommandLogsByServer(botId: string, serverId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
+  getCommandLogsByServerCount(botId: string, serverId: string): Promise<number>;
   getCommandLogsByUser(botId: string, userId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
+  getCommandLogsByUserCount(botId: string, userId: string): Promise<number>;
   getCommandLogsByCommand(botId: string, commandName: string, limit?: number, offset?: number): Promise<CommandLog[]>;
+  getCommandLogsByCommandCount(botId: string, commandName: string): Promise<number>;
   createCommandLog(log: InsertCommandLog): Promise<CommandLog>;
   
   // Plugin management
@@ -389,6 +393,10 @@ export class MemStorage implements IStorage {
       .slice(offset, offset + limit);
   }
 
+  async getCommandLogsCount(botId: string): Promise<number> {
+    return Array.from(this.commandLogs.values()).filter(log => log.botId === botId).length;
+  }
+
   async getCommandLogsByServer(botId: string, serverId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return Array.from(this.commandLogs.values())
       .filter(log => log.botId === botId && log.serverId === serverId)
@@ -398,6 +406,10 @@ export class MemStorage implements IStorage {
         return ta - tb;
       })
       .slice(offset, offset + limit);
+  }
+
+  async getCommandLogsByServerCount(botId: string, serverId: string): Promise<number> {
+    return Array.from(this.commandLogs.values()).filter(log => log.botId === botId && log.serverId === serverId).length;
   }
 
   async getCommandLogsByUser(botId: string, userId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
@@ -411,6 +423,10 @@ export class MemStorage implements IStorage {
       .slice(offset, offset + limit);
   }
 
+  async getCommandLogsByUserCount(botId: string, userId: string): Promise<number> {
+    return Array.from(this.commandLogs.values()).filter(log => log.botId === botId && log.userId === userId).length;
+  }
+
   async getCommandLogsByCommand(botId: string, commandName: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
     return Array.from(this.commandLogs.values())
       .filter(log => log.botId === botId && log.commandName === commandName)
@@ -420,6 +436,10 @@ export class MemStorage implements IStorage {
         return ta - tb;
       })
       .slice(offset, offset + limit);
+  }
+
+  async getCommandLogsByCommandCount(botId: string, commandName: string): Promise<number> {
+    return Array.from(this.commandLogs.values()).filter(log => log.botId === botId && log.commandName === commandName).length;
   }
 
   async createCommandLog(log: InsertCommandLog): Promise<CommandLog> {

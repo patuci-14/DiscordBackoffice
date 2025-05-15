@@ -54,12 +54,53 @@ export default function CommandLogs() {
     }
   };
 
-  const formatParameters = (parameters: Record<string, any>) => {
+  const formatValue = (value: unknown): string => {
+    if (value === null || value === undefined) {
+      return '-';
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    return JSON.stringify(value);
+  };
+
+  const isRecord = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  };
+
+  const formatParameters = (parameters: Record<string, unknown>, level: number = 0): string => {
     if (!parameters || Object.keys(parameters).length === 0) {
       return 'Nenhum parâmetro';
     }
+
+    const indent = '  '.repeat(level);
+    
     return Object.entries(parameters)
-      .map(([key, value]) => `${key}: ${value}`)
+      .map(([key, value]) => {
+        // Se for um objeto e não for nulo
+        if (isRecord(value)) {
+          const formattedObj = formatParameters(value, level + 1);
+          return `${indent}${key}:\n${formattedObj}`;
+        }
+        // Se for um array
+        else if (Array.isArray(value)) {
+          const formattedArray = value.map(item => {
+            if (isRecord(item)) {
+              return `\n${formatParameters(item, level + 2)}`;
+            }
+            return formatValue(item);
+          });
+          return `${indent}${key}: [${formattedArray.join(', ')}]`;
+        }
+        // Para todos os outros tipos
+        return `${indent}${key}: ${formatValue(value)}`;
+      })
       .join('\n');
   };
 

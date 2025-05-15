@@ -1095,7 +1095,15 @@ class DiscordBot {
           // Handle attachment type
           if (option.type === ApplicationCommandOptionType.Attachment) {
             const attachment = interaction.options.getAttachment(option.name);
-            value = attachment ? attachment.url : value;
+            if (attachment) {
+              value = {
+                url: attachment.url,
+                name: attachment.name,
+                extension: attachment.name.split('.').pop() || '',
+                contentType: attachment.contentType || 'unknown',
+                size: attachment.size
+              };
+            }
           }
           parameters[option.name] = value;
         });
@@ -1106,19 +1114,41 @@ class DiscordBot {
         // Prepare confirmation message with parameters
         let confirmationMessage = command.confirmationMessage || 'Are you sure you want to proceed with this action?';
 
-        // Replace parameter placeholders in the confirmation message
+        // Replace specific parameter placeholders
+        Object.entries(parameters).forEach(([key, value]) => {
+          // Handle attachment object
+          if (typeof value === 'object' && value !== null && 'url' in value) {
+            // Replace {param:key} with formatted attachment info
+            confirmationMessage = confirmationMessage.replace(
+              `{param:${key}}`, 
+              `${value.name} (${value.extension.toUpperCase()}): ${value.url}`
+            );
+            
+            // Add support for specific file properties
+            confirmationMessage = confirmationMessage
+              .replace(`{param:${key}.name}`, value.name)
+              .replace(`{param:${key}.extension}`, value.extension.toUpperCase())
+              .replace(`{param:${key}.url}`, value.url)
+              .replace(`{param:${key}.size}`, `${Math.round(value.size / 1024)} KB`);
+          } else {
+            // Regular parameter replacement
+            confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
+          }
+        });
+
+        // Format parameters for {params} placeholder
         if (confirmationMessage.includes('{params}')) {
           // Create a formatted string of all parameters
           const paramsText = Object.entries(parameters)
-            .map(([key, value]) => `${key}: ${value}`)
+            .map(([key, value]) => {
+              if (typeof value === 'object' && value !== null && 'url' in value) {
+                return `${key}: ${value.name} (${value.extension.toUpperCase()}) - ${value.url}`;
+              }
+              return `${key}: ${value}`;
+            })
             .join('\n');
           confirmationMessage = confirmationMessage.replace('{params}', paramsText);
         }
-
-        // Replace specific parameter placeholders
-        Object.entries(parameters).forEach(([key, value]) => {
-          confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
-        });
 
         // Replace standard placeholders
         confirmationMessage = confirmationMessage
@@ -1248,7 +1278,13 @@ class DiscordBot {
     if (command.options && Array.isArray(command.options) && command.options.length > 0) {
       command.options.forEach(option => {
         const optionName = option.name.toLowerCase().replace(/\s+/g, '_');
-        const optionValue = parameters[optionName] || '';
+        let optionValue = parameters[optionName] || '';
+        
+        // Handle attachment object
+        if (typeof optionValue === 'object' && optionValue !== null && 'url' in optionValue) {
+          // Format attachment information
+          optionValue = `${optionValue.name} (${optionValue.extension.toUpperCase()}): ${optionValue.url}`;
+        }
         
         // Replace the placeholder in the response
         response = response.replace(`{${optionName}}`, String(optionValue));
@@ -1313,6 +1349,26 @@ class DiscordBot {
           botId: this.client.user?.id || 'unknown'
         };
 
+        // Process parameters for webhook
+        if (parameters) {
+          // Create a processed parameters object for the webhook
+          const processedParams: Record<string, any> = {};
+          
+          // Process each parameter
+          Object.entries(parameters).forEach(([key, value]) => {
+            if (typeof value === 'object' && value !== null && 'url' in value) {
+              // For attachments, send the full object with all details
+              processedParams[key] = value;
+            } else {
+              // For other types, just pass the value as is
+              processedParams[key] = value;
+            }
+          });
+          
+          // Add processed parameters to the webhook payload
+          webhookPayload.processedParameters = processedParams;
+        }
+
         // Send webhook request with appropriate timeout and retry
         const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
           headers: {
@@ -1344,11 +1400,48 @@ class DiscordBot {
           });
         } else {
           // Handle webhook error
-          // ... existing error handling code ...
+          console.warn(`Webhook for command ${command.name} returned non-success status: ${webhookResponse.status}`);
+          
+          // Log the error response
+          await storage.createCommandLog({
+            botId: this.client.user?.id || 'unknown',
+            serverId: interaction.guild!.id,
+            serverName: interaction.guild!.name,
+            channelId: interaction.channel?.id ?? '0',
+            channelName: this.getChannelName(interaction.channel),
+            userId: interaction.user.id,
+            username: interaction.user.tag,
+            commandName: command.name,
+            status: 'success',
+            timestamp: new Date(),
+            parameters,
+            callbackStatus: 'failed',
+            callbackError: `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}`,
+            callbackTimestamp: new Date()
+          });
         }
       } catch (error) {
         // Handle webhook exception
-        // ... existing exception handling code ...
+        const webhookError = error instanceof Error ? error.message : 'Unknown webhook error';
+        console.error(`Error calling webhook for command ${command.name}:`, webhookError);
+        
+        // Log the error
+        await storage.createCommandLog({
+          botId: this.client.user?.id || 'unknown',
+          serverId: interaction.guild!.id,
+          serverName: interaction.guild!.name,
+          channelId: interaction.channel?.id ?? '0',
+          channelName: this.getChannelName(interaction.channel),
+          userId: interaction.user.id,
+          username: interaction.user.tag,
+          commandName: command.name,
+          status: 'success',
+          timestamp: new Date(),
+          parameters,
+          callbackStatus: 'failed',
+          callbackError: webhookError,
+          callbackTimestamp: new Date()
+        });
       }
     }
     

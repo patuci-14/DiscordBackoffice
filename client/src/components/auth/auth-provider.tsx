@@ -190,13 +190,18 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           id: bot.id,
           avatar: bot.avatar,
         });
+        if (bot.id && !localStorage.getItem('botId')) {
+          localStorage.setItem('botId', bot.id);
+        }
       } else {
         setBotInfo(null);
+        localStorage.removeItem('botId');
       }
     } catch (error) {
       console.error('Status check error:', error);
       setIsAuthenticated(false);
       setBotInfo(null);
+      localStorage.removeItem('botId');
     } finally {
       setLoading(false);
     }
