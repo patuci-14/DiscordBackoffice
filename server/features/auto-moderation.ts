@@ -10,7 +10,7 @@ const BAD_WORDS = ['palavrão1', 'palavrão2']; // Lista de palavras proibidas
 export async function handleMessage(message: Message) {
   if (message.author.bot) return;
 
-  const botConfig = await storage.getBotConfig();
+  const botConfig = await storage.getBotConfig(message.guild?.id || 'unknown');
   if (!botConfig) return;
 
   // Verificar spam
@@ -64,6 +64,8 @@ async function handleSpam(message: Message) {
   await message.delete().catch(console.error);
 
   // Enviar aviso
+  if (message.channel.isTextBased()) {
+
   const warning = await message.channel.send({
     content: `${message.author}, por favor, não envie mensagens em sequência tão rapidamente.`
   });
@@ -72,6 +74,9 @@ async function handleSpam(message: Message) {
   setTimeout(() => {
     warning.delete().catch(console.error);
   }, 5000);
+  
+  }
+
 }
 
 function checkBadContent(content: string): boolean {

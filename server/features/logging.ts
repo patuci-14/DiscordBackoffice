@@ -2,7 +2,7 @@ import { Message, GuildMember, TextChannel } from 'discord.js';
 import { storage } from '../storage';
 
 export async function handleMessageDelete(message: Message) {
-  const botConfig = await storage.getBotConfig();
+  const botConfig = await storage.getBotConfig(message.guild?.id || 'unknown');
   if (!botConfig?.enableLogging) return;
 
   const logChannel = message.guild?.channels.cache.find(
@@ -17,7 +17,7 @@ export async function handleMessageDelete(message: Message) {
 }
 
 export async function handleMemberUpdate(oldMember: GuildMember, newMember: GuildMember) {
-  const botConfig = await storage.getBotConfig();
+  const botConfig = await storage.getBotConfig(newMember.guild.id);
   if (!botConfig?.enableLogging) return;
 
   const logChannel = newMember.guild.channels.cache.find(

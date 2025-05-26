@@ -2,7 +2,7 @@ import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder,
   ApplicationCommandType, ApplicationCommandOptionType, REST, Routes, Interaction, 
   ChatInputCommandInteraction, TextChannel, DMChannel, VoiceChannel, Channel, BaseGuildTextChannel,
   GuildMember, PartialGuildMember, GuildBasedChannel, AutocompleteInteraction, Role,
-  ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction } from 'discord.js';
+  ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, ActivityType } from 'discord.js';
 import axios from 'axios';
 import { storage } from './storage';
 import { BotConfig, Server, InsertServer, Command, InsertCommandLog, CommandOption } from '@shared/schema';
@@ -12,7 +12,7 @@ import { handleMessageDelete, handleMemberUpdate } from './features/logging';
 import { eq } from 'drizzle-orm';
 
 class DiscordBot {
-  private client: Client;
+  private client!: Client;
   private token: string | null = null;
   private commands: Collection<string, Command> = new Collection();
   private startTime: Date | null = null;
@@ -334,7 +334,7 @@ class DiscordBot {
           'failed',
           {},
           undefined,
-          undefined,
+          String(error),
           new Date()
         );
         
@@ -532,7 +532,7 @@ class DiscordBot {
     // Set activity
     if (botConfig.activity) {
       this.client.user?.setActivity(botConfig.activity, { 
-        type: botConfig.activityType
+        type: (botConfig.activityType as unknown as ActivityType) || ActivityType.Playing
       });
     }
   }
@@ -607,6 +607,7 @@ class DiscordBot {
           name: cmd.name.toLowerCase(),
           description: cmd.description || `Run the ${cmd.name} command`,
           type: ApplicationCommandType.ChatInput,
+          options: cmd.options
         };
 
         if (cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0) {
@@ -708,7 +709,7 @@ class DiscordBot {
         );
         console.log(`Option found in array: ${option ? 'Yes' : 'No'}`);
       } else if (command.options && typeof command.options === 'object') {
-        option = command.options[focusedOption.name] as CommandOption;
+        option = command.options[focusedOption.name as keyof typeof command.options] as CommandOption;
         console.log(`Option found in object: ${option ? 'Yes' : 'No'}`);
       }
       
@@ -1076,7 +1077,7 @@ class DiscordBot {
           'permission_denied',
           undefined,
           undefined,
-          new Date()
+          new Date().toISOString()
         );
         
         return interaction.reply({ 
@@ -1096,13 +1097,13 @@ class DiscordBot {
           if (option.type === ApplicationCommandOptionType.Attachment) {
             const attachment = interaction.options.getAttachment(option.name);
             if (attachment) {
-              value = {
+              value = JSON.stringify({
                 url: attachment.url,
                 name: attachment.name,
                 extension: attachment.name.split('.').pop() || '',
                 contentType: attachment.contentType || 'unknown',
                 size: attachment.size
-              };
+              });
             }
           }
           parameters[option.name] = value;
@@ -1256,7 +1257,7 @@ class DiscordBot {
         interaction.user.tag,
         command.name,
         'failed',
-        parameters,
+        {},
         undefined,
         String(error),
         new Date()

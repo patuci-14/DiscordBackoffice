@@ -2,7 +2,7 @@ import { storage } from '../storage';
 
 async function checkCommand(commandName: string) {
   try {
-    const command = await storage.getCommandByName(commandName);
+    const command = await storage.getCommandByName("default-bot", commandName);
     if (!command) {
       console.log(`Comando "${commandName}" não encontrado no banco de dados.`);
       return;
