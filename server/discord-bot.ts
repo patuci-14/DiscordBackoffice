@@ -1320,7 +1320,11 @@ class DiscordBot {
       }
     }
     
-    // Call webhook if configured
+    // Lógica de log único
+    let callbackStatus: string | undefined = undefined;
+    let callbackError: string | undefined = undefined;
+    let callbackTimestamp: Date | undefined = undefined;
+    
     if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
       console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
       try {
@@ -1352,101 +1356,42 @@ class DiscordBot {
 
         // Process parameters for webhook
         if (parameters) {
-          // Create a processed parameters object for the webhook
           const processedParams: Record<string, any> = {};
-          
-          // Process each parameter
           Object.entries(parameters).forEach(([key, value]) => {
             if (typeof value === 'object' && value !== null && 'url' in value) {
-              // For attachments, send the full object with all details
               processedParams[key] = value;
             } else {
-              // For other types, just pass the value as is
               processedParams[key] = value;
             }
           });
-          
-          // Add processed parameters to the webhook payload
           webhookPayload.processedParameters = processedParams;
         }
 
-        // Send webhook request with appropriate timeout and retry
+        // Send webhook request
         const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
           headers: {
             'Content-Type': 'application/json',
             'User-Agent': 'Discord-Bot-Manager'
           },
-          timeout: 5000, // 5 second timeout to prevent hanging
-          validateStatus: status => status < 500 // Accept all non-server error responses
+          timeout: 5000,
+          validateStatus: status => status < 500
         });
-        
-        // Handle webhook response
+        callbackTimestamp = new Date();
         if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
-          console.log(`Webhook triggered successfully for command ${command.name}`);
-          // Update command log with callback success
-          await storage.createCommandLog({
-            botId: this.client.user?.id || 'unknown',
-            serverId: interaction.guild!.id,
-            serverName: interaction.guild!.name,
-            channelId: interaction.channel?.id ?? '0',
-            channelName: this.getChannelName(interaction.channel),
-            userId: interaction.user.id,
-            username: interaction.user.tag,
-            commandName: command.name,
-            status: 'success',
-            timestamp: new Date(),
-            parameters,
-            callbackStatus: 'success',
-            callbackTimestamp: new Date()
-          });
+          callbackStatus = 'success';
         } else {
-          // Handle webhook error
-          console.warn(`Webhook for command ${command.name} returned non-success status: ${webhookResponse.status}`);
-          
-          // Log the error response
-          await storage.createCommandLog({
-            botId: this.client.user?.id || 'unknown',
-            serverId: interaction.guild!.id,
-            serverName: interaction.guild!.name,
-            channelId: interaction.channel?.id ?? '0',
-            channelName: this.getChannelName(interaction.channel),
-            userId: interaction.user.id,
-            username: interaction.user.tag,
-            commandName: command.name,
-            status: 'success',
-            timestamp: new Date(),
-            parameters,
-            callbackStatus: 'failed',
-            callbackError: `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}`,
-            callbackTimestamp: new Date()
-          });
+          callbackStatus = 'failed';
+          callbackError = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}`;
         }
       } catch (error) {
-        // Handle webhook exception
-        const webhookError = error instanceof Error ? error.message : 'Unknown webhook error';
-        console.error(`Error calling webhook for command ${command.name}:`, webhookError);
-        
-        // Log the error
-        await storage.createCommandLog({
-          botId: this.client.user?.id || 'unknown',
-          serverId: interaction.guild!.id,
-          serverName: interaction.guild!.name,
-          channelId: interaction.channel?.id ?? '0',
-          channelName: this.getChannelName(interaction.channel),
-          userId: interaction.user.id,
-          username: interaction.user.tag,
-          commandName: command.name,
-          status: 'success',
-          timestamp: new Date(),
-          parameters,
-          callbackStatus: 'failed',
-          callbackError: webhookError,
-          callbackTimestamp: new Date()
-        });
+        callbackStatus = 'failed';
+        callbackTimestamp = new Date();
+        callbackError = error instanceof Error ? error.message : 'Unknown webhook error';
+        console.error(`Error calling webhook for command ${command.name}:`, callbackError);
       }
     }
-    
-    // Log command execution
+
+    // Sempre cria só UM log, com ou sem callback
     if (command.logUsage) {
       await this.createCommandLogEntry(
         interaction.guild!.id,
@@ -1458,9 +1403,9 @@ class DiscordBot {
         command.name,
         'success',
         parameters,
-        undefined,
-        undefined,
-        new Date()
+        callbackStatus,
+        callbackError,
+        callbackTimestamp || (callbackStatus ? new Date() : undefined)
       );
     }
   }
