@@ -113,7 +113,7 @@ const Dashboard: React.FC = () => {
           icon="fas fa-terminal"
           iconBgColor="bg-discord-green"
           iconColor="text-discord-white"
-          subtitle={statsData?.stats?.commandsUsed && statsData.stats.commandsUsed > 0 ? `${Math.min(statsData.stats.commandsUsed, 24)} in the last 24 hours` : 'No commands used yet'}
+          subtitle={statsData?.stats?.commandsUsed && statsData.stats.commandsUsed > 0 ? `${statsData.stats.commandsUsed} in the last 24 hours` : 'No commands used yet'}
         />
         
         <StatsCard
@@ -131,7 +131,7 @@ const Dashboard: React.FC = () => {
           icon="fas fa-chart-line"
           iconBgColor="bg-discord-red"
           iconColor="text-discord-white"
-          subtitle={statsData?.stats?.uptime ? `Last restart: ${statsData.stats.uptime}` : 'Recently started'}
+          subtitle={botInfoData?.config?.lastConnected ? `Last login: ${dayjs(botInfoData.config.lastConnected).tz('America/Sao_Paulo').format('DD/MM/YYYY HH:mm')}` : 'Recently started'}
         />
       </div>
       

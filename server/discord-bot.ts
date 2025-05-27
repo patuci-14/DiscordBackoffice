@@ -1461,6 +1461,10 @@ class DiscordBot {
       callbackTimestamp
     });
   }
+
+  public getBotId(): string | undefined {
+    return this.client.user?.id;
+  }
 }
 
 // Create a singleton instance

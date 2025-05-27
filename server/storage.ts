@@ -339,7 +339,10 @@ export class MemStorage implements IStorage {
       deleteUserMessage: command.deleteUserMessage ?? false,
       logUsage: command.logUsage ?? true,
       active: command.active ?? true,
-      type: command.type ?? "text"
+      type: command.type ?? "text",
+      requireConfirmation: command.requireConfirmation ?? false,
+      confirmationMessage: command.confirmationMessage ?? null,
+      cancelMessage: command.cancelMessage ?? null
     };
     this.commands.set(id, newCommand);
     return newCommand;
@@ -462,7 +465,7 @@ export class MemStorage implements IStorage {
     );
     
     if (command) {
-      await this.incrementCommandUsage(command.id);
+      await this.incrementCommandUsageByBotId(command.botId, command.name);
     }
     
     return newLog;

@@ -1,8 +1,9 @@
 import { storage } from '../storage';
+import discordBot from '../discord-bot';
 
 async function checkBotConfig() {
   try {
-    const config = await storage.getBotConfig();
+    const config = await storage.getBotConfig(discordBot.getBotId() || '');
     if (!config) {
       console.log('Nenhuma configuração encontrada para o bot.');
       return;

@@ -9,7 +9,7 @@ import { PaginationPageSize } from '@/components/ui/pagination';
 interface CommandListProps {
   commands: Command[];
   isLoading: boolean;
-  onEdit: (commandId: string) => void;
+  onEdit: (commandId: number) => void;
 }
 
 const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }) => {

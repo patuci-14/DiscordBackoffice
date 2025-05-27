@@ -48,7 +48,7 @@ const Commands: React.FC = () => {
     enabledForAllServers: true,
     deleteUserMessage: false,
     logUsage: true,
-    active: true,
+    active: true
   };
   
   const createButton = (

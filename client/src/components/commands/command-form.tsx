@@ -58,7 +58,7 @@ interface CommandOption {
 }
 
 interface CommandFormProps {
-  command?: Command;
+  command?: Command | InsertCommand;
   isEditing: boolean;
   onClose: () => void;
 }
