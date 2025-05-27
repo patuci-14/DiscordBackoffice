@@ -68,7 +68,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   
   // Form state
   const [name, setName] = useState('');
-  const [type, setType] = useState<'text' | 'slash' | 'embed'>('text');
+  const [type, setType] = useState<'text' | 'slash' | 'embed' | 'context-menu'>('text');
   const [description, setDescription] = useState('');
   const [response, setResponse] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
@@ -80,6 +80,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   const [active, setActive] = useState(true);
   const [options, setOptions] = useState<CommandOption[]>([]);
   const [showOptionsPanel, setShowOptionsPanel] = useState(false);
+  const [contextMenuType, setContextMenuType] = useState<'message' | 'user'>('message');
   
   // Add confirmation settings
   const [requireConfirmation, setRequireConfirmation] = useState(false);
@@ -93,7 +94,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   useEffect(() => {
     if (command) {
       setName(command.name || '');
-      setType(command.type as 'text' | 'slash' | 'embed');
+      setType(command.type as 'text' | 'slash' | 'embed' | 'context-menu');
       setDescription(command.description || '');
       setResponse(command.response || '');
       setWebhookUrl(command.webhookUrl || '');
@@ -236,7 +237,8 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       options: type === 'slash' && options.length > 0 ? options : [],
       requireConfirmation,
       confirmationMessage: requireConfirmation ? confirmationMessage : null,
-      cancelMessage: requireConfirmation ? cancelMessage : null
+      cancelMessage: requireConfirmation ? cancelMessage : null,
+      contextMenuType: type === 'context-menu' ? contextMenuType : undefined
     };
     
     if (isEditing && command && 'id' in command) {
@@ -330,7 +332,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
           
           <div>
             <Label className="block text-discord-text-secondary text-sm mb-1">Command Type</Label>
-            <Select value={type} onValueChange={(value: 'text' | 'slash' | 'embed') => setType(value)}>
+            <Select value={type} onValueChange={(value: 'text' | 'slash' | 'embed' | 'context-menu') => setType(value)}>
               <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
                 <SelectValue placeholder="Select command type" />
               </SelectTrigger>
@@ -338,6 +340,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                 <SelectItem value="text">Text Command</SelectItem>
                 <SelectItem value="slash">Slash Command</SelectItem>
                 <SelectItem value="embed">Embed Message</SelectItem>
+                <SelectItem value="context-menu">Context Menu Command</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -357,6 +360,25 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
           </p>
         </div>
         
+        {type === 'context-menu' && (
+          <div className="mb-6">
+            <Label className="block text-discord-text-secondary text-sm mb-1">Context Menu Type</Label>
+            <Select value={contextMenuType} onValueChange={(value: 'message' | 'user') => setContextMenuType(value)}>
+              <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
+                <SelectValue placeholder="Select context menu type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="message">Message Context Menu</SelectItem>
+                <SelectItem value="user">User Context Menu</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-discord-text-secondary mt-1">
+              Message context menu appears when right-clicking on a message.
+              User context menu appears when right-clicking on a user.
+            </p>
+          </div>
+        )}
+        
         <div className="mb-6">
           <Label className="block text-discord-text-secondary text-sm mb-1">Response</Label>
           <Textarea
@@ -366,7 +388,15 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
             onChange={(e) => setResponse(e.target.value)}
             className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
           />
-          <p className="text-xs text-discord-text-secondary mt-1">You can use {'{user}'} for the user's name, {'{server}'} for the server name.</p>
+          <p className="text-xs text-discord-text-secondary mt-1">
+            You can use {'{user}'} for the user's name, {'{server}'} for the server name.
+            {type === 'context-menu' && (
+              <>
+                <br />
+                For context menu commands, you can also use {'{target}'} for the target user's name or message.
+              </>
+            )}
+          </p>
         </div>
         
         <div className="mb-6">

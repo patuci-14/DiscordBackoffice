@@ -2,10 +2,11 @@ import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder,
   ApplicationCommandType, ApplicationCommandOptionType, REST, Routes, Interaction, 
   ChatInputCommandInteraction, TextChannel, DMChannel, VoiceChannel, Channel, BaseGuildTextChannel,
   GuildMember, PartialGuildMember, GuildBasedChannel, AutocompleteInteraction, Role,
-  ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, ActivityType } from 'discord.js';
+  ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, ActivityType,
+  ContextMenuCommandInteraction, User } from 'discord.js';
 import axios from 'axios';
 import { storage } from './storage';
-import { BotConfig, Server, InsertServer, Command, InsertCommandLog, CommandOption } from '@shared/schema';
+import { BotConfig, Server, InsertServer, Command, InsertCommandLog, CommandOption, BotStat } from '@shared/schema';
 import { handleMemberJoin, handleMemberLeave } from './features/welcome-messages';
 import { handleMessage as handleAutoMod } from './features/auto-moderation';
 import { handleMessageDelete, handleMemberUpdate } from './features/logging';
@@ -106,6 +107,8 @@ class DiscordBot {
         await this.handleSlashCommand(interaction);
       } else if (interaction.isAutocomplete()) {
         await this.handleAutocomplete(interaction);
+      } else if (interaction.isContextMenuCommand()) {
+        await this.handleContextMenuCommand(interaction);
       }
     });
     
@@ -941,7 +944,7 @@ class DiscordBot {
     }
     
     try {
-      console.log('Starting slash command registration...');
+      console.log('Starting command registration...');
       
       const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
       if (!botConfig || !botConfig.useSlashCommands) {
@@ -949,24 +952,33 @@ class DiscordBot {
         return;
       }
       
-      // Get all active slash commands
+      // Get all active commands
       const commands = Array.from(this.commands.values()).filter(cmd => 
-        cmd.active && cmd.type === 'slash'
+        cmd.active && (cmd.type === 'slash' || cmd.type === 'context-menu')
       );
       
       if (commands.length === 0) {
-        console.log('No active slash commands to register.');
+        console.log('No active commands to register.');
         return;
       }
       
-      console.log(`Found ${commands.length} active slash commands to register.`);
+      console.log(`Found ${commands.length} active commands to register.`);
       
       // Create the REST API instance
       const rest = new REST({ version: '10' }).setToken(this.token);
       
       // Format commands for registration
-      const slashCommands = commands.map(cmd => {
-        console.log(`\nPreparing slash command: "${cmd.name}"`);
+      const applicationCommands = commands.map(cmd => {
+        console.log(`\nPreparing command: "${cmd.name}"`);
+        
+        if (cmd.type === 'context-menu') {
+          return {
+            name: cmd.name.toLowerCase(),
+            type: cmd.contextMenuType === 'message' ? 
+              ApplicationCommandType.Message : 
+              ApplicationCommandType.User
+          };
+        }
         
         const commandData: any = {
           name: cmd.name.toLowerCase(),
@@ -1001,20 +1013,20 @@ class DiscordBot {
         return commandData;
       });
       
-      console.log(`\nRegistering ${slashCommands.length} slash commands...`);
+      console.log(`\nRegistering ${applicationCommands.length} commands...`);
       
       if (this.client.user) {
         // Register commands globally
         const response = await rest.put(
           Routes.applicationCommands(this.client.user.id),
-          { body: slashCommands }
+          { body: applicationCommands }
         );
         
         console.log('Successfully registered application commands:', response);
       }
     } catch (error) {
-      console.error('Error registering slash commands:', error);
-      throw error; // Re-throw to handle it in the calling code
+      console.error('Error registering commands:', error);
+      throw error;
     }
   }
   
@@ -1464,6 +1476,116 @@ class DiscordBot {
 
   public getBotId(): string | undefined {
     return this.client.user?.id;
+  }
+
+  private async handleContextMenuCommand(interaction: ContextMenuCommandInteraction) {
+    try {
+      const command = this.commands.get(interaction.commandName);
+      if (!command) {
+        await interaction.reply({ content: 'Command not found.', ephemeral: true });
+        return;
+      }
+
+      // Handle the context menu command
+      if (command.type === 'context-menu') {
+        let targetName = 'unknown';
+        let targetId = interaction.targetId;
+        
+        if (interaction.isMessageContextMenuCommand()) {
+          targetName = 'message';
+        } else if (interaction.isUserContextMenuCommand()) {
+          const targetUser = interaction.targetUser;
+          targetName = targetUser.username;
+          targetId = targetUser.id;
+        }
+
+        // Process the command response
+        let response = command.response;
+        response = response
+          .replace('{user}', interaction.user.username)
+          .replace('{target}', targetName)
+          .replace('{server}', interaction.guild?.name || 'DM');
+
+        // Send the response
+        await interaction.reply({ content: response, ephemeral: true });
+
+        // Handle webhook if configured
+        let callbackStatus: string | undefined = undefined;
+        let callbackError: string | undefined = undefined;
+        let callbackTimestamp: Date | undefined = undefined;
+
+        if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
+          console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
+          try {
+            const webhookPayload = {
+              command: command.name,
+              user: {
+                id: interaction.user.id,
+                username: interaction.user.username,
+                discriminator: interaction.user.discriminator,
+                avatarUrl: interaction.user.displayAvatarURL()
+              },
+              server: {
+                id: interaction.guild?.id || 'unknown',
+                name: interaction.guild?.name || 'DM',
+              },
+              channel: {
+                id: interaction.channelId,
+                name: this.getChannelName(interaction.channel)
+              },
+              target: {
+                id: targetId,
+                name: targetName
+              },
+              timestamp: new Date(),
+              botId: this.client.user?.id || 'unknown'
+            };
+
+            const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Discord-Bot-Manager'
+              },
+              timeout: 5000,
+              validateStatus: status => status < 500
+            });
+
+            callbackTimestamp = new Date();
+            callbackStatus = webhookResponse.status >= 200 && webhookResponse.status < 300 ? 'success' : 'failed';
+            if (callbackStatus === 'failed') {
+              callbackError = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}`;
+            }
+          } catch (error) {
+            callbackStatus = 'failed';
+            callbackTimestamp = new Date();
+            callbackError = error instanceof Error ? error.message : 'Unknown webhook error';
+            console.error(`Error calling webhook for command ${command.name}:`, callbackError);
+          }
+        }
+
+        // Log the command usage
+        await this.createCommandLogEntry(
+          interaction.guildId || 'unknown',
+          interaction.guild?.name || 'unknown',
+          interaction.channelId,
+          this.getChannelName(interaction.channel),
+          interaction.user.id,
+          interaction.user.tag,
+          command.name,
+          'success',
+          { targetId, targetName },
+          callbackStatus,
+          callbackError,
+          callbackTimestamp || (callbackStatus ? new Date() : undefined)
+        );
+      }
+    } catch (error) {
+      console.error('Error handling context menu command:', error);
+      await interaction.reply({ 
+        content: 'There was an error executing this command.', 
+        ephemeral: true 
+      });
+    }
   }
 }
 

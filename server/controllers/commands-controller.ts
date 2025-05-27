@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 const commandValidator = z.object({
   name: z.string().min(1).max(32).transform(val => val.toLowerCase()),
-  type: z.enum(['text', 'slash', 'embed']),
+  type: z.enum(['text', 'slash', 'embed', 'context-menu']),
   response: z.string().optional(),
   description: z.string().nullable().optional(),
   webhookUrl: z.string().nullable().optional().or(z.literal('')),
@@ -19,6 +19,7 @@ const commandValidator = z.object({
   requireConfirmation: z.boolean().optional(),
   confirmationMessage: z.string().nullable().optional(),
   cancelMessage: z.string().nullable().optional(),
+  contextMenuType: z.enum(['message', 'user']).optional().nullable(),
   options: z.array(z.object({
     name: z.string().transform(val => val.toLowerCase()),
     description: z.string(),
@@ -202,38 +203,25 @@ export const updateCommand = async (req: Request, res: Response) => {
     }
     
     // Validate the update data
-    const { 
-      name, type, response, description, webhookUrl, requiredPermission, 
-      cooldown, enabledForAllServers, deleteUserMessage, 
-      logUsage, active, options, requireConfirmation, confirmationMessage, cancelMessage
-    } = req.body;
+    const validation = commandValidator.safeParse(req.body);
     
-    const updates: Partial<InsertCommand> = {};
-    
-    if (name !== undefined) updates.name = name.toLowerCase();
-    if (type !== undefined) updates.type = type;
-    if (response !== undefined) updates.response = response;
-    if (description !== undefined) updates.description = description;
-    if (webhookUrl !== undefined) updates.webhookUrl = webhookUrl;
-    if (requiredPermission !== undefined) updates.requiredPermission = requiredPermission;
-    if (cooldown !== undefined) updates.cooldown = cooldown;
-    if (enabledForAllServers !== undefined) updates.enabledForAllServers = enabledForAllServers;
-    if (deleteUserMessage !== undefined) updates.deleteUserMessage = deleteUserMessage;
-    if (logUsage !== undefined) updates.logUsage = logUsage;
-    if (active !== undefined) updates.active = active;
-    if (requireConfirmation !== undefined) updates.requireConfirmation = requireConfirmation;
-    if (confirmationMessage !== undefined) updates.confirmationMessage = confirmationMessage;
-    if (cancelMessage !== undefined) updates.cancelMessage = cancelMessage;
-    if (options !== undefined) {
-      updates.options = options.map((option: { name: string; description: string; type: string; required: boolean }) => ({
-        ...option,
-        name: option.name.toLowerCase()
-      }));
+    if (!validation.success) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid command data',
+        details: validation.error.format()
+      });
     }
     
+    const updates = {
+      ...validation.data,
+      name: validation.data.name.toLowerCase(),
+      contextMenuType: validation.data.type === 'context-menu' ? validation.data.contextMenuType : null
+    };
+    
     // Check if name is being changed and if it already exists
-    if (name && name.toLowerCase() !== existingCommand.name.toLowerCase()) {
-      const commandWithName = await storage.getCommandByName(existingCommand.botId, name.toLowerCase());
+    if (updates.name && updates.name.toLowerCase() !== existingCommand.name.toLowerCase()) {
+      const commandWithName = await storage.getCommandByName(existingCommand.botId, updates.name.toLowerCase());
       
       if (commandWithName) {
         return res.status(409).json({ 

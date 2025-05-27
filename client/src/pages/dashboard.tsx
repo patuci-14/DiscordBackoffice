@@ -12,6 +12,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import { useAuth } from '@/components/auth/auth-provider';
+import { useCommandStats } from '@/hooks/use-command-stats';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -31,8 +32,11 @@ const Dashboard: React.FC = () => {
     queryKey: ['/api/bot/stats', botInfo?.id],
     queryFn: () => getBotStats(),
     retry: false,
-    enabled: !!botInfo?.id // Only run query when we have a botId
+    enabled: !!botInfo?.id,
+    refetchInterval: 60000 // Refetch every minute
   });
+
+  const { data: commandStats } = useCommandStats(botInfo?.id);
 
   useEffect(() => {
     const refreshInterval = setInterval(() => {
@@ -113,7 +117,7 @@ const Dashboard: React.FC = () => {
           icon="fas fa-terminal"
           iconBgColor="bg-discord-green"
           iconColor="text-discord-white"
-          subtitle={statsData?.stats?.commandsUsed && statsData.stats.commandsUsed > 0 ? `${statsData.stats.commandsUsed} in the last 24 hours` : 'No commands used yet'}
+          subtitle={commandStats ? `${commandStats} in the last 24 hours` : 'No commands used yet'}
         />
         
         <StatsCard

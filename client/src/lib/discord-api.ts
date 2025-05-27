@@ -296,3 +296,12 @@ export async function deletePlugin(id: number): Promise<{ success: boolean; mess
     };
   }
 }
+
+export async function getCommandsUsedLast24Hours(): Promise<number> {
+  const response = await fetch('/api/commands/stats');
+  if (!response.ok) {
+    throw new Error('Failed to fetch command stats');
+  }
+  const data = await response.json();
+  return data.count;
+}

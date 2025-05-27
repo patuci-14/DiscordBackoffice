@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, gte } from 'drizzle-orm';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import {
@@ -40,7 +40,7 @@ export class DbStorage implements IStorage {
 
   // Bot configuration
   async getBotConfig(botId: string): Promise<BotConfig | undefined> {
-    const result = await db.select().from(botConfigs).where(eq(botConfigs.botId, botId)).limit(1);
+    const result = await db.select().from(botConfigs).where(eq(botConfigs.botId, botId));
     return result[0];
   }
 
@@ -50,8 +50,21 @@ export class DbStorage implements IStorage {
   }
 
   async updateBotConfig(botId: string, config: Partial<BotConfig>): Promise<BotConfig | undefined> {
+    if (!config || typeof config !== 'object') {
+      return undefined;
+    }
+
+    // Filter out undefined values and ensure we have a valid object
+    const updateData = Object.fromEntries(
+      Object.entries(config).filter(([_, value]) => value !== undefined && value !== null)
+    );
+
+    if (Object.keys(updateData).length === 0) {
+      return undefined;
+    }
+
     const result = await db.update(botConfigs)
-      .set({ ...config, lastConnected: new Date() })
+      .set(updateData)
       .where(eq(botConfigs.botId, botId))
       .returning();
     return result[0];
@@ -101,140 +114,173 @@ export class DbStorage implements IStorage {
   }
 
   async getCommandByName(botId: string, name: string): Promise<Command | undefined> {
-    const result = await db.select().from(commands)
-      .where(and(eq(commands.botId, botId), eq(commands.name, name)));
+    const result = await db.select()
+      .from(commands)
+      .where(and(
+        eq(commands.botId, botId),
+        eq(commands.name, name)
+      ));
     return result[0];
   }
 
   async createCommand(command: InsertCommand): Promise<Command> {
-    const result = await db.insert(commands).values(command).returning();
-    console.log('Resultado do insert de comando:', result);
+    const result = await db.insert(commands).values({
+      ...command,
+      webhookUrl: command.webhookUrl || null,
+      options: command.options || {},
+      description: command.description ?? null,
+      requiredPermission: command.requiredPermission ?? null,
+      cooldown: command.cooldown ?? null,
+      enabledForAllServers: command.enabledForAllServers ?? true,
+      deleteUserMessage: command.deleteUserMessage ?? false,
+      logUsage: command.logUsage ?? true,
+      active: command.active ?? true,
+      type: command.type ?? "text",
+      requireConfirmation: command.requireConfirmation ?? false,
+      confirmationMessage: command.confirmationMessage ?? null,
+      cancelMessage: command.cancelMessage ?? null,
+      contextMenuType: command.contextMenuType ?? null
+    }).returning();
     return result[0];
   }
 
-  async updateCommand(id: number, update: Partial<Command>): Promise<Command | undefined> {
-    const result = await db.update(commands)
-      .set(update)
+  async updateCommand(id: number, updates: Partial<InsertCommand>): Promise<Command> {
+    const updateData = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined && value !== null)
+    );
+
+    if (Object.keys(updateData).length === 0) {
+      throw new Error('No valid updates provided');
+    }
+
+    const result = await db
+      .update(commands)
+      .set(updateData)
       .where(eq(commands.id, id))
       .returning();
+
+    if (!result.length) {
+      throw new Error('Command not found');
+    }
+
     return result[0];
   }
 
   async deleteCommand(id: number): Promise<boolean> {
-    console.log('DbStorage: Attempting to delete command with ID:', id);
-    try {
-      const result = await db.delete(commands).where(eq(commands.id, id)).returning();
-      console.log('DbStorage: Delete operation result:', result);
-      return result.length > 0;
-    } catch (error) {
-      console.error('DbStorage: Error deleting command:', error);
-      throw error;
-    }
-  }
-
-  async incrementCommandUsage(id: number): Promise<Command | undefined> {
-    const command = await this.getCommand(id);
-    if (!command) return undefined;
-
-    // Update command usage count
-    const result = await db.update(commands)
-      .set({ usageCount: (command.usageCount ?? 0) + 1 })
-      .where(eq(commands.id, id))
-      .returning();
-
-    // Log para depuração
-    console.log('Incrementando usage para botId:', command.botId, 'comando:', command.name);
-
-    // Increment commandsUsed only for the correct bot
-    await db.update(botStats)
-      .set({ 
-        commandsUsed: sql`${botStats.commandsUsed} + 1`,
-        lastUpdate: new Date()
-      })
-      .where(eq(botStats.botId, command.botId))
-      .returning();
-
-    return result[0];
+    const result = await db.delete(commands).where(eq(commands.id, id)).returning();
+    return result.length > 0;
   }
 
   async incrementCommandUsageByBotId(botId: string, commandName: string): Promise<void> {
-    // Busca o comando do bot correto
-    const command = await db.select().from(commands)
-      .where(and(eq(commands.botId, botId), eq(commands.name, commandName)))
-      .then(res => res[0]);
-    if (!command) return;
-
-    // Atualiza o usageCount do comando
     await db.update(commands)
-      .set({ usageCount: (command.usageCount ?? 0) + 1 })
-      .where(eq(commands.id, command.id))
-      .returning();
-
-    // Incrementa o contador de comandos usados do bot correto
-    await db.update(botStats)
-      .set({ 
-        commandsUsed: sql`${botStats.commandsUsed} + 1`,
-        lastUpdate: new Date()
+      .set({
+        usageCount: sql`${commands.usageCount} + 1`
       })
-      .where(eq(botStats.botId, botId))
-      .returning();
+      .where(and(
+        eq(commands.botId, botId),
+        eq(commands.name, commandName)
+      ));
+  }
+
+  async getCommandsUsedLast24Hours(botId: string): Promise<number> {
+    const result = await db.select({
+      count: sql<number>`count(*)`
+    })
+    .from(commandLogs)
+    .where(and(
+      eq(commandLogs.botId, botId),
+      gte(commandLogs.timestamp, sql`now() - interval '24 hours'`)
+    ));
+    return result[0].count;
   }
 
   // Command logs
-  async getCommandLogs(botId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
-    return await db.select().from(commandLogs)
-      .where(eq(commandLogs.botId, botId))
-      .orderBy(desc(commandLogs.timestamp))
-      .limit(limit)
-      .offset(offset);
+  async getCommandLogs(botId: string, limit?: number, offset?: number): Promise<CommandLog[]> {
+    const query = db.select().from(commandLogs).where(eq(commandLogs.botId, botId));
+    if (limit !== undefined) query.limit(limit);
+    if (offset !== undefined) query.offset(offset);
+    return await query;
   }
 
   async getCommandLogsCount(botId: string): Promise<number> {
-    const result = await db.select({ count: sql<number>`count(*)` }).from(commandLogs)
-      .where(eq(commandLogs.botId, botId));
-    return Number(result[0].count);
+    const result = await db.select({
+      count: sql<number>`count(*)`
+    })
+    .from(commandLogs)
+    .where(eq(commandLogs.botId, botId));
+    return result[0].count;
   }
 
-  async getCommandLogsByServer(botId: string, serverId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
-    return await db.select().from(commandLogs)
-      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.serverId, serverId)))
-      .orderBy(desc(commandLogs.timestamp))
-      .limit(limit)
-      .offset(offset);
+  async getCommandLogsByServer(botId: string, serverId: string, limit?: number, offset?: number): Promise<CommandLog[]> {
+    const query = db.select()
+      .from(commandLogs)
+      .where(and(
+        eq(commandLogs.botId, botId),
+        eq(commandLogs.serverId, serverId)
+      ));
+    if (limit !== undefined) query.limit(limit);
+    if (offset !== undefined) query.offset(offset);
+    return await query;
   }
 
   async getCommandLogsByServerCount(botId: string, serverId: string): Promise<number> {
-    const result = await db.select({ count: sql<number>`count(*)` }).from(commandLogs)
-      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.serverId, serverId)));
-    return Number(result[0].count);
+    const result = await db.select({
+      count: sql<number>`count(*)`
+    })
+    .from(commandLogs)
+    .where(and(
+      eq(commandLogs.botId, botId),
+      eq(commandLogs.serverId, serverId)
+    ));
+    return result[0].count;
   }
 
-  async getCommandLogsByUser(botId: string, userId: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
-    return await db.select().from(commandLogs)
-      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.userId, userId)))
-      .orderBy(desc(commandLogs.timestamp))
-      .limit(limit)
-      .offset(offset);
+  async getCommandLogsByUser(botId: string, userId: string, limit?: number, offset?: number): Promise<CommandLog[]> {
+    const query = db.select()
+      .from(commandLogs)
+      .where(and(
+        eq(commandLogs.botId, botId),
+        eq(commandLogs.userId, userId)
+      ));
+    if (limit !== undefined) query.limit(limit);
+    if (offset !== undefined) query.offset(offset);
+    return await query;
   }
 
   async getCommandLogsByUserCount(botId: string, userId: string): Promise<number> {
-    const result = await db.select({ count: sql<number>`count(*)` }).from(commandLogs)
-      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.userId, userId)));
-    return Number(result[0].count);
+    const result = await db.select({
+      count: sql<number>`count(*)`
+    })
+    .from(commandLogs)
+    .where(and(
+      eq(commandLogs.botId, botId),
+      eq(commandLogs.userId, userId)
+    ));
+    return result[0].count;
   }
 
-  async getCommandLogsByCommand(botId: string, commandName: string, limit: number = 50, offset: number = 0): Promise<CommandLog[]> {
-    return await db.select().from(commandLogs)
-      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.commandName, commandName)))
-      .orderBy(desc(commandLogs.timestamp))
-      .limit(limit)
-      .offset(offset);
+  async getCommandLogsByCommand(botId: string, commandName: string, limit?: number, offset?: number): Promise<CommandLog[]> {
+    const query = db.select()
+      .from(commandLogs)
+      .where(and(
+        eq(commandLogs.botId, botId),
+        eq(commandLogs.commandName, commandName)
+      ));
+    if (limit !== undefined) query.limit(limit);
+    if (offset !== undefined) query.offset(offset);
+    return await query;
   }
 
   async getCommandLogsByCommandCount(botId: string, commandName: string): Promise<number> {
-    const result = await db.select({ count: sql<number>`count(*)` }).from(commandLogs)
-      .where(and(eq(commandLogs.botId, botId), eq(commandLogs.commandName, commandName)));
-    return Number(result[0].count);
+    const result = await db.select({
+      count: sql<number>`count(*)`
+    })
+    .from(commandLogs)
+    .where(and(
+      eq(commandLogs.botId, botId),
+      eq(commandLogs.commandName, commandName)
+    ));
+    return result[0].count;
   }
 
   async createCommandLog(log: InsertCommandLog): Promise<CommandLog> {
@@ -277,19 +323,13 @@ export class DbStorage implements IStorage {
 
   // Stats
   async getBotStats(botId: string): Promise<BotStat | undefined> {
-    const result = await db.select().from(botStats).where(eq(botStats.botId, botId)).limit(1);
+    const result = await db.select().from(botStats).where(eq(botStats.botId, botId));
     return result[0];
   }
 
-  async updateBotStats(stats: Partial<BotStat>): Promise<BotStat | undefined> {
-    if (!stats.botId) throw new Error('botId is required for updateBotStats');
-    const currentStats = await this.getBotStats(stats.botId);
-    if (!currentStats) {
-      const result = await db.insert(botStats).values(stats as InsertBotStat).returning();
-      return result[0];
-    }
+  async updateBotStats(stats: Partial<BotStat> & { botId: string }): Promise<BotStat | undefined> {
     const result = await db.update(botStats)
-      .set({ ...stats, lastUpdate: new Date() })
+      .set(stats)
       .where(eq(botStats.botId, stats.botId))
       .returning();
     return result[0];

@@ -37,6 +37,7 @@ export interface IStorage {
   updateCommand(id: number, update: Partial<Command>): Promise<Command | undefined>;
   deleteCommand(id: number): Promise<boolean>;
   incrementCommandUsageByBotId(botId: string, commandName: string): Promise<void>;
+  getCommandsUsedLast24Hours(botId: string): Promise<number>;
 
   // Command logs
   getCommandLogs(botId: string, limit?: number, offset?: number): Promise<CommandLog[]>;
@@ -382,6 +383,19 @@ export class MemStorage implements IStorage {
       };
       this.botStats.set(botId, updatedStats);
     }
+  }
+
+  async getCommandsUsedLast24Hours(botId: string): Promise<number> {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    return Array.from(this.commandLogs.values())
+      .filter(log => 
+        log.botId === botId && 
+        log.timestamp && 
+        new Date(log.timestamp) >= twentyFourHoursAgo &&
+        log.status === 'success'
+      ).length;
   }
 
   // Command logs

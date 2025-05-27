@@ -84,7 +84,7 @@ export const commands = pgTable("commands", {
   id: serial("id").primaryKey(),
   botId: text("bot_id").notNull(),
   name: text("name").notNull(),
-  type: text("type").notNull().default("text"), // text, slash, embed
+  type: text("type").notNull().default("text"), // text, slash, embed, context-menu
   description: text("description"), // Used for slash command descriptions
   response: text("response").notNull(),
   webhookUrl: text("webhook_url"), // URL to be called when command is triggered
@@ -99,6 +99,7 @@ export const commands = pgTable("commands", {
   requireConfirmation: boolean("require_confirmation").default(false),
   confirmationMessage: text("confirmation_message"),
   cancelMessage: text("cancel_message"),
+  contextMenuType: text("context_menu_type"), // message or user
 });
 
 export const insertCommandSchema = createInsertSchema(commands).pick({
@@ -118,6 +119,7 @@ export const insertCommandSchema = createInsertSchema(commands).pick({
   requireConfirmation: true,
   confirmationMessage: true,
   cancelMessage: true,
+  contextMenuType: true,
 });
 
 // Command Logs
