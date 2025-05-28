@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AppShell from '@/components/layout/app-shell';
 import StatsCard from '@/components/ui/stats-card';
@@ -32,20 +32,10 @@ const Dashboard: React.FC = () => {
     queryKey: ['/api/bot/stats', botInfo?.id],
     queryFn: () => getBotStats(),
     retry: false,
-    enabled: !!botInfo?.id,
-    refetchInterval: 60000 // Refetch every minute
+    enabled: !!botInfo?.id
   });
 
   const { data: commandStats } = useCommandStats(botInfo?.id);
-
-  useEffect(() => {
-    const refreshInterval = setInterval(() => {
-      refetchBotInfo();
-      refetchStats();
-    }, 60000);
-
-    return () => clearInterval(refreshInterval);
-  }, [refetchBotInfo, refetchStats]);
 
   const handleRefresh = async () => {
     try {
