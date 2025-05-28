@@ -107,7 +107,7 @@ const Dashboard: React.FC = () => {
           icon="fas fa-terminal"
           iconBgColor="bg-discord-green"
           iconColor="text-discord-white"
-          subtitle={commandStats ? `${commandStats} in the last 24 hours` : 'No commands used yet'}
+          subtitle={commandStats ? `${commandStats} in the last 24 hours` : 'No commands used in the last 24 hours'}
         />
         
         <StatsCard

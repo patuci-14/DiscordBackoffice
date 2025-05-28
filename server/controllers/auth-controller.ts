@@ -45,10 +45,17 @@ export const authenticate = async (req: Request, res: Response) => {
     };
     
     if (botConfig) {
-      botConfig = await storage.updateBotConfig(botData);
+      botConfig = await storage.updateBotConfig(botData.botId, botData);
     } else {
       botConfig = await storage.createBotConfig(botData);
     }
+
+    let stats = await storage.getBotStats(botData.botId as string);
+
+    stats = await storage.updateBotStats({
+      botId: botData.botId as string,
+      lastUpdate: new Date()
+    });
     
     // Retorne os dados do bot (exceto o token)
     return res.status(200).json({
