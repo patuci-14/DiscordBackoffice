@@ -343,7 +343,8 @@ export class MemStorage implements IStorage {
       type: command.type ?? "text",
       requireConfirmation: command.requireConfirmation ?? false,
       confirmationMessage: command.confirmationMessage ?? null,
-      cancelMessage: command.cancelMessage ?? null
+      cancelMessage: command.cancelMessage ?? null,
+      contextMenuType: command.contextMenuType ?? null
     };
     this.commands.set(id, newCommand);
     return newCommand;
@@ -369,20 +370,32 @@ export class MemStorage implements IStorage {
     // Update command usage count
     const updatedCommand: Command = { 
       ...command, 
-      usageCount: (command.usageCount || 0) + 1 
+      usageCount: (command.usageCount || 0) + 1,
+      contextMenuType: command.contextMenuType ?? null
     };
     this.commands.set(command.id, updatedCommand);
     
-    // Update commands used in stats
-    const currentStats = this.botStats.get(botId);
-    if (currentStats) {
-      const updatedStats: BotStat = {
-        ...currentStats,
-        commandsUsed: (currentStats.commandsUsed || 0) + 1,
-        lastUpdate: new Date()
+    // Garantir que o registro de estatísticas exista
+    let currentStats = this.botStats.get(botId);
+    if (!currentStats) {
+      currentStats = {
+        id: this.currentBotStatsId++,
+        botId: botId,
+        serverCount: 0,
+        commandsUsed: 0,
+        activeUsers: 0,
+        uptime: '0%',
+        lastUpdate: new Date(),
       };
-      this.botStats.set(botId, updatedStats);
+      this.botStats.set(botId, currentStats);
     }
+    // Update commands used in stats
+    const updatedStats: BotStat = {
+      ...currentStats,
+      commandsUsed: (currentStats.commandsUsed || 0) + 1,
+      lastUpdate: new Date()
+    };
+    this.botStats.set(botId, updatedStats);
   }
 
   async getCommandsUsedLast24Hours(botId: string): Promise<number> {
