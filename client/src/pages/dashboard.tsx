@@ -21,10 +21,6 @@ const Dashboard: React.FC = () => {
   const { toast } = useToast();
   const { botInfo } = useAuth();
 
-  if (!botInfo?.id) {
-    return <div>Carregando informações do bot...</div>;
-  }
-
   const { data: botInfoData, isLoading: isBotInfoLoading, refetch: refetchBotInfo } = useQuery<{ success: boolean; config?: BotConfig }>({
     queryKey: ['/api/bot', botInfo?.id],
     queryFn: () => getBotInfo(),
@@ -139,7 +135,7 @@ const Dashboard: React.FC = () => {
           iconSize="text-4xl"
           subtitle={
             commandStats
-              ? `${commandStats} nas últimos 24 horas`
+              ? `${commandStats} nas últimas 24 horas`
               : "Nenhum comando usado nas últimas 24 horas"
           }
         />

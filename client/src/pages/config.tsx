@@ -64,8 +64,8 @@ const Config: React.FC = () => {
     mutationFn: (configUpdate: Partial<BotConfig>) => updateBotConfig(configUpdate),
     onSuccess: () => {
       toast({
-        title: 'Configuration Updated',
-        description: 'Bot configuration has been saved successfully.',
+        title: 'Configuração Atualizada',
+        description: 'Configuração do bot atualizada com sucesso.',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/bot'] });
       setFormChanged(false);
@@ -73,8 +73,8 @@ const Config: React.FC = () => {
     onError: () => {
       toast({
         variant: 'destructive',
-        title: 'Update Failed',
-        description: 'Failed to update bot configuration.',
+        title: 'Falha ao Atualizar',
+        description: 'Falha ao atualizar a configuração do bot.',
       });
     }
   });
@@ -85,15 +85,15 @@ const Config: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/bot/servers'] });
       toast({
-        title: 'Server Updated',
-        description: 'Server settings have been updated.',
+        title: 'Servidor Atualizado',
+        description: 'Configurações do servidor atualizadas com sucesso.',
       });
     },
     onError: () => {
       toast({
         variant: 'destructive',
-        title: 'Update Failed',
-        description: 'Failed to update server settings.',
+        title: 'Falha ao Atualizar',
+        description: 'Falha ao atualizar as configurações do servidor.',
       });
     }
   });
@@ -223,12 +223,12 @@ const Config: React.FC = () => {
       {/* General Settings Card */}
       <Card className="bg-discord-bg-secondary rounded-lg shadow mb-6">
         <CardHeader>
-          <h3 className="font-bold">General Settings</h3>
+          <h3 className="font-bold">Configurações Gerais</h3>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="block text-discord-text-secondary text-sm mb-1">Bot Name</Label>
+              <Label className="block text-discord-text-secondary text-sm mb-1">Nome do Bot</Label>
               <Input
                 type="text"
                 value={botName}
@@ -238,7 +238,7 @@ const Config: React.FC = () => {
             </div>
             
             <div>
-              <Label className="block text-discord-text-secondary text-sm mb-1">Bot Prefix</Label>
+              <Label className="block text-discord-text-secondary text-sm mb-1">Prefixo do Bot</Label>
               <Input
                 type="text"
                 value={botPrefix}
@@ -248,37 +248,37 @@ const Config: React.FC = () => {
             </div>
             
             <div>
-              <Label className="block text-discord-text-secondary text-sm mb-1">Bot Status</Label>
+              <Label className="block text-discord-text-secondary text-sm mb-1">Status do Bot</Label>
               <Select value={botStatus} onValueChange={setBotStatus}>
                 <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="online">Online</SelectItem>
-                  <SelectItem value="idle">Idle</SelectItem>
-                  <SelectItem value="dnd">Do Not Disturb</SelectItem>
-                  <SelectItem value="invisible">Invisible</SelectItem>
+                  <SelectItem value="idle">Ocupado</SelectItem>
+                  <SelectItem value="dnd">Não perturbar</SelectItem>
+                  <SelectItem value="invisible">Invisível</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div>
-              <Label className="block text-discord-text-secondary text-sm mb-1">Activity</Label>
+              <Label className="block text-discord-text-secondary text-sm mb-1">Atividade</Label>
               <div className="flex space-x-2">
                 <Select value={activityType} onValueChange={setActivityType}>
                   <SelectTrigger className="flex-1 px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                    <SelectValue placeholder="Activity type" />
+                    <SelectValue placeholder="Tipo de atividade" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PLAYING">Playing</SelectItem>
-                    <SelectItem value="WATCHING">Watching</SelectItem>
-                    <SelectItem value="LISTENING">Listening to</SelectItem>
-                    <SelectItem value="COMPETING">Competing in</SelectItem>
+                    <SelectItem value="PLAYING">Jogando</SelectItem>
+                    <SelectItem value="WATCHING">Assistindo</SelectItem>
+                    <SelectItem value="LISTENING">Ouvindo</SelectItem>
+                    <SelectItem value="COMPETING">Competindo</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input
                   type="text"
-                  placeholder="Activity text"
+                  placeholder="Texto da atividade"
                   value={activity}
                   onChange={(e) => setActivity(e.target.value)}
                   className="flex-1 px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
@@ -291,8 +291,8 @@ const Config: React.FC = () => {
             <ToggleSwitch
               checked={useSlashCommands}
               onChange={setUseSlashCommands}
-              label="Use Slash Commands"
-              description="Enable to use Discord's slash command integration"
+              label="Usar comandos de barra"
+              description="Habilitar para usar a integração de comandos de barra do Discord"
             />
           </div>
         </CardContent>
@@ -301,7 +301,7 @@ const Config: React.FC = () => {
       {/* Bot Features Card */}
       <Card className="bg-discord-bg-secondary rounded-lg shadow mb-6">
         <CardHeader>
-          <h3 className="font-bold">Bot Features</h3>
+          <h3 className="font-bold">Recursos do Bot</h3>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -310,7 +310,7 @@ const Config: React.FC = () => {
                 checked={logCommandUsage}
                 onChange={setLogCommandUsage}
               />
-              <Label className="text-discord-text-secondary ml-3">Log Command Usage</Label>
+              <Label className="text-discord-text-secondary ml-3">Logar uso de comandos</Label>
             </div>
             
             <div className="flex items-center">
@@ -318,7 +318,7 @@ const Config: React.FC = () => {
                 checked={respondToMentions}
                 onChange={setRespondToMentions}
               />
-              <Label className="text-discord-text-secondary ml-3">Respond to Mentions</Label>
+              <Label className="text-discord-text-secondary ml-3">Responder a menções</Label>
             </div>
             
             <div className="flex items-center">
@@ -326,7 +326,7 @@ const Config: React.FC = () => {
                 checked={deleteCommandMessages}
                 onChange={setDeleteCommandMessages}
               />
-              <Label className="text-discord-text-secondary ml-3">Delete Command Messages</Label>
+              <Label className="text-discord-text-secondary ml-3">Deletar mensagens de comandos</Label>
             </div>
             
             <div className="flex items-center">
@@ -334,7 +334,7 @@ const Config: React.FC = () => {
                 checked={enableWelcomeMessages}
                 onChange={setEnableWelcomeMessages}
               />
-              <Label className="text-discord-text-secondary ml-3">Welcome Messages</Label>
+              <Label className="text-discord-text-secondary ml-3">Mensagens de boas-vindas</Label>
             </div>
             
             <div className="flex items-center">
@@ -342,7 +342,7 @@ const Config: React.FC = () => {
                 checked={enableGoodbyeMessages}
                 onChange={setEnableGoodbyeMessages}
               />
-              <Label className="text-discord-text-secondary ml-3">Goodbye Messages</Label>
+              <Label className="text-discord-text-secondary ml-3">Mensagens de despedida</Label>
             </div>
             
             <div className="flex items-center">
@@ -350,7 +350,7 @@ const Config: React.FC = () => {
                 checked={enableAutoRole}
                 onChange={setEnableAutoRole}
               />
-              <Label className="text-discord-text-secondary ml-3">Auto Role</Label>
+              <Label className="text-discord-text-secondary ml-3">Cargo automático</Label>
             </div>
             
             <div className="flex items-center">
@@ -358,7 +358,7 @@ const Config: React.FC = () => {
                 checked={enableLogging}
                 onChange={setEnableLogging}
               />
-              <Label className="text-discord-text-secondary ml-3">Enable Logging</Label>
+              <Label className="text-discord-text-secondary ml-3">Habilitar logs</Label>
             </div>
             
             <div className="flex items-center">
@@ -366,7 +366,7 @@ const Config: React.FC = () => {
                 checked={enableAntiSpam}
                 onChange={setEnableAntiSpam}
               />
-              <Label className="text-discord-text-secondary ml-3">Anti-Spam Protection</Label>
+              <Label className="text-discord-text-secondary ml-3">Proteção contra spam</Label>
             </div>
             
             <div className="flex items-center">
@@ -374,7 +374,7 @@ const Config: React.FC = () => {
                 checked={enableAutoMod}
                 onChange={setEnableAutoMod}
               />
-              <Label className="text-discord-text-secondary ml-3">Auto Moderation</Label>
+              <Label className="text-discord-text-secondary ml-3">Moderação automática</Label>
             </div>
           </div>
         </CardContent>
@@ -383,14 +383,14 @@ const Config: React.FC = () => {
       {/* Servers Configuration Card */}
       <Card className="bg-discord-bg-secondary rounded-lg shadow mb-6">
         <CardHeader>
-          <h3 className="font-bold">Servers Configuration</h3>
+          <h3 className="font-bold">Configuração de servidores</h3>
         </CardHeader>
         <CardContent>
           <div className="mb-4">
             <div className="relative">
               <Input
                 type="text"
-                placeholder="Search servers..."
+                placeholder="Pesquisar servidores..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
@@ -425,7 +425,7 @@ const Config: React.FC = () => {
                 ))
               ) : (
                 <div className="py-6 text-center text-discord-text-secondary">
-                  {searchTerm ? 'No servers match your search' : 'No servers found'}
+                  {searchTerm ? 'Nenhum servidor corresponde à sua pesquisa' : 'Nenhum servidor encontrado'}
                 </div>
               )}
             </div>
@@ -433,7 +433,7 @@ const Config: React.FC = () => {
           
           <div className="mt-4 text-center">
             <Button variant="link" className="text-discord-blurple text-sm hover:underline" onClick={createInviteLink}>
-              Invite Bot to New Server
+              Convidar bot para novo servidor
             </Button>
           </div>
         </CardContent>

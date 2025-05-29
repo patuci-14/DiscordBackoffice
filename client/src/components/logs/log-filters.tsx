@@ -146,9 +146,9 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
                 <SelectValue placeholder="Selecionar faixa de data" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="24h">Últimos 24 Horas</SelectItem>
-                <SelectItem value="7d">Últimos 7 Dias</SelectItem>
-                <SelectItem value="30d">Últimos 30 Dias</SelectItem>
+                <SelectItem value="24h">Últimas 24 Horas</SelectItem>
+                <SelectItem value="7d">Últimas 7 Dias</SelectItem>
+                <SelectItem value="30d">Últimas 30 Dias</SelectItem>
                 <SelectItem value="custom">Faixa de Data Personalizada</SelectItem>
               </SelectContent>
             </Select>
