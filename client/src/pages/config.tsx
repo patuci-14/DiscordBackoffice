@@ -219,7 +219,7 @@ const Config: React.FC = () => {
   );
 
   return (
-    <AppShell title="Bot Configuration" actions={saveButton}>
+    <AppShell title="Configuração do Bot" actions={saveButton}>
       {/* General Settings Card */}
       <Card className="bg-discord-bg-secondary rounded-lg shadow mb-6">
         <CardHeader>

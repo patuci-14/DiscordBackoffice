@@ -1193,7 +1193,7 @@ class DiscordBot {
             await this.processCommand(command, interaction, parameters);
           } else {
             // Handle cancellation
-            const cancelMessage = command.cancelMessage || 'Action cancelled.';
+            const cancelMessage = command.cancelMessage || 'Ação cancelada.';
             await buttonInteraction.followUp({
               content: cancelMessage,
               ephemeral: true
@@ -1205,7 +1205,7 @@ class DiscordBot {
           if (collected.size === 0) {
             // No button was pressed within the time limit
             await interaction.editReply({
-              content: 'Confirmation timed out.',
+              content: 'Tempo de confirmação esgotado.',
               components: []
             });
           }
@@ -1215,14 +1215,14 @@ class DiscordBot {
         await this.processCommand(command, interaction, parameters);
       }
     } catch (error) {
-      console.error(`Error executing command ${commandName}:`, error);
+      console.error(`Erro ao executar o comando ${commandName}:`, error);
       
       // Try to send an error message
       try {
         if (interaction.deferred) {
-          await interaction.editReply('An error occurred while executing this command.');
+          await interaction.editReply('Ocorreu um erro ao executar este comando.');
         } else {
-          await interaction.reply({ content: 'An error occurred while executing this command.', ephemeral: true });
+          await interaction.reply({ content: 'Ocorreu um erro ao executar este comando.', ephemeral: true });
         }
       } catch (replyError) {
         console.error('Error sending error message:', replyError);
@@ -1302,7 +1302,21 @@ class DiscordBot {
         await interaction.followUp({ content: response, ephemeral: command.deleteUserMessage || false });
       }
     }
-    
+
+    // Typing loop for webhook
+    let typingInterval: NodeJS.Timeout | undefined;
+    if (
+      interaction.channel &&
+      'sendTyping' in interaction.channel &&
+      typeof interaction.channel.sendTyping === 'function'
+    ) {
+      typingInterval = setInterval(() => {
+        (interaction.channel as any).sendTyping().catch(() => {});
+      }, 8000);
+      // Dispara imediatamente também
+      (interaction.channel as any).sendTyping().catch(() => {});
+    }
+
     // Lógica de log único
     let callbackStatus: 'Sucesso' | 'Erro' | 'Permissão Negada' | undefined = undefined;
     let callbackError: string | undefined = undefined;
@@ -1385,6 +1399,8 @@ class DiscordBot {
             await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
           }
         }
+      } finally {
+        if (typingInterval) clearInterval(typingInterval);
       }
     }
 
