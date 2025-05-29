@@ -332,6 +332,7 @@ export class MemStorage implements IStorage {
       id,
       usageCount: 0,
       webhookUrl: command.webhookUrl || null,
+      webhookFailureMessage: command.webhookFailureMessage || null,
       options: command.options || {},
       description: command.description ?? null,
       requiredPermission: command.requiredPermission ?? null,

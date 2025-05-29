@@ -37,24 +37,25 @@ const Sidebar: React.FC<SidebarProps> = ({ botName = 'Discord Bot' }) => {
     <aside className="w-64 bg-discord-bg-secondary flex-shrink-0 h-screen overflow-y-auto">
       <div className="flex items-center p-4 border-b border-gray-700">
         <i className="fab fa-discord text-discord-blurple text-2xl mr-3"></i>
-        <h1 className="font-bold text-lg">Bot Backoffice</h1>
+        <h1 className="font-bold text-lg">{botName}</h1>
       </div>
       
-      {/* Bot Status Indicator */}
+      {/* Bot Status Indicator 
       <div className="p-4 border-b border-gray-700">
         <div className="flex items-center">
           <span className="h-3 w-3 bg-discord-green rounded-full mr-2"></span>
-          <span className="text-sm">{botName}</span>
+          <span className="text-sm"></span>
         </div>
         <p className="text-xs text-discord-text-secondary mt-1">Online</p>
       </div>
-      
+      */}
+
       {/* Navigation Menu */}
       <nav className="py-4 flex-1 overflow-y-auto">
         <ul>
           <NavItem to="/dashboard" icon="fas fa-tachometer-alt" label="Dashboard" />
-          <NavItem to="/config" icon="fas fa-cogs" label="Configuration" />
-          <NavItem to="/commands" icon="fas fa-terminal" label="Commands" />
+          <NavItem to="/config" icon="fas fa-cogs" label="Configurações" />
+          <NavItem to="/commands" icon="fas fa-terminal" label="Comandos" />
           <NavItem to="/logs" icon="fas fa-list" label="Logs" />
         </ul>
       </nav>
@@ -65,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({ botName = 'Discord Bot' }) => {
           onClick={handleLogout}
           className="w-full px-4 py-2 text-sm text-discord-text-secondary hover:text-white bg-discord-bg-tertiary rounded-md flex items-center justify-center"
         >
-          <i className="fas fa-sign-out-alt mr-2"></i> Disconnect Bot
+          <i className="fas fa-sign-out-alt mr-2"></i> Desconectar
         </button>
       </div>
     </aside>

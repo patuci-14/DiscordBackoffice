@@ -230,12 +230,12 @@ export const getBotStats = async (req: Request, res: Response) => {
       success: true,
       stats,
       recentActivity: recentLogs.map(log => ({
-        type: log.status === 'success' ? 'command' : 
-              log.status === 'permission_denied' ? 'permission' : 'error',
+        type: log.status === 'Sucesso' ? 'command' : 
+              log.status === 'Permissão Negada' ? 'permission' : 'error',
         user: log.username,
         server: log.serverName,
         time: log.timestamp,
-        details: `${log.commandName} in #${log.channelName}`
+        details: `${log.commandName} em #${log.channelName}`
       }))
     });
   } catch (error) {

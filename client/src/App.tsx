@@ -35,7 +35,7 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
           <div className="inline-block">
             <i className="fas fa-circle-notch spin text-4xl text-discord-blurple"></i>
           </div>
-          <p className="mt-4 text-lg">Loading...</p>
+          <p className="mt-4 text-lg">Carregando...</p>
         </div>
       </div>
     );

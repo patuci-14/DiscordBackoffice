@@ -7,6 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getServers, getCommands } from '@/lib/discord-api';
 
+interface Server {
+  id: number;
+  serverId: string;
+  name: string;
+}
+
+interface Command {
+  id: number;
+  name: string;
+  type: 'slash' | 'prefix';
+}
+
 interface LogFiltersProps {
   onFilterChange: (filters: {
     server?: string;
@@ -23,13 +35,13 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
   const [dateRange, setDateRange] = useState('24h');
   
   // Fetch servers for the server dropdown
-  const { data: serversData } = useQuery({
+  const { data: serversData } = useQuery<{ success: boolean; servers?: Server[] }>({
     queryKey: ['/api/bot/servers'],
     retry: false,
   });
   
   // Fetch commands for the command dropdown
-  const { data: commandsData } = useQuery({
+  const { data: commandsData } = useQuery<{ success: boolean; commands?: Command[] }>({
     queryKey: ['/api/commands'],
     retry: false,
   });
@@ -78,15 +90,15 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
   return (
     <Card className="bg-discord-bg-secondary rounded-lg shadow mb-6">
       <CardHeader>
-        <h3 className="font-bold">Filter Logs</h3>
+        <h3 className="font-bold">Filtrar Logs</h3>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Server</Label>
+            <Label className="block text-discord-text-primary text-sm mb-1">Servidor</Label>
             <Select value={server} onValueChange={setServer}>
               <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                <SelectValue placeholder="All Servers" />
+                <SelectValue placeholder="Todos os Servidores" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Servers</SelectItem>
@@ -100,13 +112,13 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
           </div>
           
           <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Command</Label>
+            <Label className="block text-discord-text-primary text-sm mb-1">Comando</Label>
             <Select value={command} onValueChange={setCommand}>
               <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                <SelectValue placeholder="All Commands" />
+                <SelectValue placeholder="Todos os Comandos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Commands</SelectItem>
+                <SelectItem value="all">Todos os Comandos</SelectItem>
                 {commandsData?.commands?.map(cmd => (
                   <SelectItem key={cmd.id} value={cmd.name}>
                     {cmd.type === 'slash' ? '/' : '!'}{cmd.name}
@@ -117,10 +129,10 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
           </div>
           
           <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">User</Label>
+            <Label className="block text-discord-text-primary text-sm mb-1">Usuário</Label>
             <Input
               type="text"
-              placeholder="Filter by user"
+              placeholder="Filtrar por usuário"
               value={user}
               onChange={(e) => setUser(e.target.value)}
               className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
@@ -128,16 +140,16 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
           </div>
           
           <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Date Range</Label>
+            <Label className="block text-discord-text-primary text-sm mb-1">Faixa de Data</Label>
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                <SelectValue placeholder="Select date range" />
+                <SelectValue placeholder="Selecionar faixa de data" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="24h">Last 24 Hours</SelectItem>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
+                <SelectItem value="24h">Últimos 24 Horas</SelectItem>
+                <SelectItem value="7d">Últimos 7 Dias</SelectItem>
+                <SelectItem value="30d">Últimos 30 Dias</SelectItem>
+                <SelectItem value="custom">Faixa de Data Personalizada</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -149,13 +161,13 @@ const LogFilters: React.FC<LogFiltersProps> = ({ onFilterChange }) => {
             onClick={handleClearFilters}
             className="px-3 py-2 bg-discord-bg-tertiary text-discord-text-secondary rounded text-sm"
           >
-            Clear Filters
+            Limpar Filtros
           </Button>
           <Button
             onClick={handleApplyFilters}
             className="px-4 py-2 bg-discord-blurple text-white rounded hover:bg-opacity-80 text-sm"
           >
-            Apply Filters
+            Aplicar Filtros
           </Button>
         </div>
       </CardContent>

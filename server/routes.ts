@@ -33,6 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.get('/bot/stats', requireAuth, botController.getBotStats);
   
   // Commands routes
+  apiRouter.get('/commands/stats', requireAuth, commandsController.getCommandsStats);
   apiRouter.get('/commands', requireAuth, commandsController.getCommands);
   apiRouter.get('/commands/:id', requireAuth, commandsController.getCommand);
   apiRouter.post('/commands', requireAuth, commandsController.createCommand);

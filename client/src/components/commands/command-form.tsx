@@ -87,6 +87,9 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   const [confirmationMessage, setConfirmationMessage] = useState('Are you sure you want to proceed with this action?');
   const [cancelMessage, setCancelMessage] = useState('Action cancelled.');
   
+  // Add state for webhookFailureMessage
+  const [webhookFailureMessage, setWebhookFailureMessage] = useState('');
+  
   // Adicionar botId do localStorage (ou contexto)
   const botId = localStorage.getItem('botId') || '';
   
@@ -122,6 +125,11 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
         if (command.cancelMessage) {
           setCancelMessage(command.cancelMessage);
         }
+      }
+      
+      // Initialize webhookFailureMessage if editing
+      if ('webhookFailureMessage' in command && command.webhookFailureMessage) {
+        setWebhookFailureMessage(command.webhookFailureMessage);
       }
     }
   }, [command]);
@@ -238,7 +246,8 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       requireConfirmation,
       confirmationMessage: requireConfirmation ? confirmationMessage : null,
       cancelMessage: requireConfirmation ? cancelMessage : null,
-      contextMenuType: type === 'context-menu' ? contextMenuType : undefined
+      contextMenuType: type === 'context-menu' ? contextMenuType : undefined,
+      webhookFailureMessage: webhookFailureMessage || null,
     };
     
     if (isEditing && command && 'id' in command) {
@@ -311,11 +320,11 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
 
   return (
     <div>
-      <h3 className="font-bold mb-4">{isEditing ? 'Edit Command' : 'Create New Command'}</h3>
+      <h3 className="font-bold mb-4">{isEditing ? 'Editar Comando' : 'Criar Novo Comando'}</h3>
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Command Name</Label>
+            <Label className="block text-discord-text-secondary text-sm mb-1">Nome do Comando</Label>
             <div className="flex">
               <span className="inline-flex items-center px-3 bg-discord-bg-tertiary border border-r-0 border-gray-700 rounded-l text-discord-text-secondary">
                 {type === 'slash' ? '/' : '!'}
@@ -331,104 +340,116 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
           </div>
           
           <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Command Type</Label>
+            <Label className="block text-discord-text-secondary text-sm mb-1">Tipo de Comando</Label>
             <Select value={type} onValueChange={(value: 'text' | 'slash' | 'embed' | 'context-menu') => setType(value)}>
               <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
                 <SelectValue placeholder="Select command type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="text">Text Command</SelectItem>
-                <SelectItem value="slash">Slash Command</SelectItem>
-                <SelectItem value="embed">Embed Message</SelectItem>
-                <SelectItem value="context-menu">Context Menu Command</SelectItem>
+                <SelectItem value="text">Comando de Texto</SelectItem>
+                <SelectItem value="slash">Comando de Slash</SelectItem>
+                <SelectItem value="embed">Mensagem de Embed</SelectItem>
+                <SelectItem value="context-menu">Comando de Menu de Contexto</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
         
         <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-1">Description {type === 'slash' && <span className="text-discord-blurple">*</span>}</Label>
+          <Label className="block text-discord-text-secondary text-sm mb-1">Descrição {type === 'slash' && <span className="text-discord-blurple">*</span>}</Label>
           <Input
             type="text"
-            placeholder="Brief description of what this command does..."
+            placeholder="Descrição breve do que o comando faz..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
           />
           <p className="text-xs text-discord-text-secondary mt-1">
-            {type === 'slash' ? 'Required for slash commands. This will be shown in Discord when users type "/" and see available commands.' : 'Optional description for documentation purposes.'}
+            {type === 'slash' ? 'Obrigatório para comandos de slash. Isso será mostrado no Discord quando os usuários digitarem "/" e verem os comandos disponíveis.' : 'Descrição opcional para fins de documentação.'}
           </p>
         </div>
         
         {type === 'context-menu' && (
           <div className="mb-6">
-            <Label className="block text-discord-text-secondary text-sm mb-1">Context Menu Type</Label>
+            <Label className="block text-discord-text-secondary text-sm mb-1">Tipo de Menu de Contexto</Label>
             <Select value={contextMenuType} onValueChange={(value: 'message' | 'user') => setContextMenuType(value)}>
               <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                <SelectValue placeholder="Select context menu type" />
+                <SelectValue placeholder="Selecione o tipo de menu de contexto" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="message">Message Context Menu</SelectItem>
-                <SelectItem value="user">User Context Menu</SelectItem>
+                <SelectItem value="message">Menu de Contexto de Mensagem</SelectItem>
+                <SelectItem value="user">Menu de Contexto de Usuário</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-discord-text-secondary mt-1">
-              Message context menu appears when right-clicking on a message.
-              User context menu appears when right-clicking on a user.
+              O menu de contexto de mensagem aparece quando você clica com o botão direito em uma mensagem.
+              O menu de contexto de usuário aparece quando você clica com o botão direito em um usuário.
             </p>
           </div>
         )}
         
         <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-1">Response</Label>
+          <Label className="block text-discord-text-secondary text-sm mb-1">Resposta</Label>
           <Textarea
             rows={4}
-            placeholder="Enter the response message for this command..."
+            placeholder="Digite a mensagem de resposta para este comando..."
             value={response}
             onChange={(e) => setResponse(e.target.value)}
             className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
           />
           <p className="text-xs text-discord-text-secondary mt-1">
-            You can use {'{user}'} for the user's name, {'{server}'} for the server name.
+            Você pode usar {'{user}'} para o nome do usuário, {'{server}'} para o nome do servidor.
             {type === 'context-menu' && (
               <>
                 <br />
-                For context menu commands, you can also use {'{target}'} for the target user's name or message.
+                Para comandos de menu de contexto, você também pode usar {'{target}'} para o nome do usuário ou mensagem alvo.
               </>
             )}
           </p>
         </div>
         
         <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-1">Webhook URL (Optional)</Label>
+          <Label className="block text-discord-text-secondary text-sm mb-1">URL do Webhook (Opcional)</Label>
           <Input
             type="text"
-            placeholder="https://your-webhook-url.com/path"
+            placeholder="https://seu-webhook-url.com/caminho"
             value={webhookUrl}
             onChange={(e) => setWebhookUrl(e.target.value)}
             className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
           />
-          <p className="text-xs text-discord-text-secondary mt-1">When this command is used, a webhook request will be sent to this URL.</p>
+          <p className="text-xs text-discord-text-secondary mt-1">Quando este comando é usado, uma solicitação de webhook será enviada para esta URL.</p>
+        </div>
+        
+        <div className="mb-6">
+          <Label className="block text-discord-text-secondary text-sm mb-1">Mensagem de falha do Webhook (Opcional)</Label>
+          <Textarea
+            rows={2}
+            placeholder="Mensagem a ser exibida ao usuário caso a chamada do webhook falhe."
+            value={webhookFailureMessage}
+            onChange={(e) => setWebhookFailureMessage(e.target.value)}
+            className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
+          />
+          <p className="text-xs text-discord-text-secondary mt-1">Se preenchido, esta mensagem será enviada ao usuário caso o webhook retorne erro ou esteja fora do ar.</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Required Permission</Label>
+            <Label className="block text-discord-text-secondary text-sm mb-1">Permissão Requerida</Label>
             <Select value={requiredPermission} onValueChange={(value: 'everyone' | 'moderator' | 'admin' | 'server-owner') => setRequiredPermission(value)}>
               <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                <SelectValue placeholder="Select required permission" />
+                <SelectValue placeholder="Selecione a permissão requerida" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="everyone">Everyone</SelectItem>
-                <SelectItem value="moderator">Moderator</SelectItem>
-                <SelectItem value="admin">Administrator</SelectItem>
-                <SelectItem value="server-owner">Server Owner</SelectItem>
+                <SelectItem value="everyone">Todos</SelectItem>
+                <SelectItem value="moderator">Moderador</SelectItem>
+                <SelectItem value="admin">Administrador</SelectItem>
+                <SelectItem value="server-owner">Proprietário do Servidor</SelectItem>
               </SelectContent>
             </Select>
           </div>
           
           <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Cooldown (seconds)</Label>
+            <Label className="block text-discord-text-secondary text-sm mb-1">Cooldown (segundos)</Label>
             <Input
               type="number"
               placeholder="0"
@@ -441,31 +462,31 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
         </div>
         
         <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-3">Command Options</Label>
+          <Label className="block text-discord-text-secondary text-sm mb-3">Opções do Comando</Label>
           
           <div className="space-y-3">
             <ToggleSwitch
               checked={enabledForAllServers}
               onChange={setEnabledForAllServers}
-              label="Enable for all servers"
+              label="Ativar para todos os servidores"
             />
             
             <ToggleSwitch
               checked={deleteUserMessage}
               onChange={setDeleteUserMessage}
-              label="Delete user's message after command"
+              label="Excluir mensagem do usuário após o comando"
             />
             
             <ToggleSwitch
               checked={logUsage}
               onChange={setLogUsage}
-              label="Log command usage"
+              label="Registrar logs quando o comando é usado"
             />
             
             <ToggleSwitch
               checked={active}
               onChange={setActive}
-              label="Command active"
+              label="Comando ativo"
             />
             
             {/* Add confirmation toggle and settings */}
@@ -475,34 +496,34 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                 onChange={(checked) => {
                   setRequireConfirmation(checked);
                 }}
-                label="Require confirmation before executing command"
+                label="Requer confirmação antes de executar o comando"
               />
               
               {requireConfirmation && (
                 <div className="mt-3 ml-6 space-y-3">
                   <div>
-                    <Label className="block text-discord-text-secondary text-xs mb-1">Confirmation Message</Label>
+                    <Label className="block text-discord-text-secondary text-xs mb-1">Mensagem de Confirmação</Label>
                     <Textarea
                       value={confirmationMessage}
                       onChange={(e) => setConfirmationMessage(e.target.value)}
-                      placeholder="Are you sure you want to proceed with this action?"
+                      placeholder="Tem certeza que deseja prosseguir com esta ação?"
                       className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
                       rows={3}
                     />
                     <p className="text-xs text-discord-text-secondary mt-1">
-                      You can use {'{user}'} for the user's name, {'{server}'} for the server name, and {'{params}'} to include all command parameters.
+                      Você pode usar {'{user}'} para o nome do usuário, {'{server}'} para o nome do servidor e {'{params}'} para incluir todos os parâmetros do comando.
                       <br />
-                      For specific parameters, use {'{param:name}'} where "name" is the parameter name.
+                      Para parâmetros específicos, use {'{param:name}'} onde "name" é o nome do parâmetro.
                       <br />
-                      For file attachments, you can use {'{param:file.name}'}, {'{param:file.extension}'}, {'{param:file.url}'}, and {'{param:file.size}'}.
+                      Para anexos de arquivo, você pode usar {'{param:file.name}'}, {'{param:file.extension}'}, {'{param:file.url}'} e {'{param:file.size}'}.
                     </p>
                   </div>
                   <div>
-                    <Label className="block text-discord-text-secondary text-xs mb-1">Cancel Message</Label>
+                    <Label className="block text-discord-text-secondary text-xs mb-1">Mensagem de Cancelamento</Label>
                     <Input
                       value={cancelMessage}
                       onChange={(e) => setCancelMessage(e.target.value)}
-                      placeholder="Action cancelled."
+                      placeholder="Ação cancelada."
                       className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
                     />
                   </div>
@@ -516,7 +537,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
           <div className="mb-6 border border-gray-700 rounded-md p-4 bg-discord-bg-secondary">
             <div className="flex justify-between items-center mb-3">
               <Label className="text-discord-text-secondary text-sm font-medium">
-                Slash Command Parameters
+                Parâmetros do Comando em Barra (Slash)
               </Label>
               
               <Button
@@ -524,15 +545,15 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                 onClick={() => setShowOptionsPanel(!showOptionsPanel)}
                 className="text-xs py-1 px-2 bg-discord-bg-tertiary text-discord-text hover:bg-opacity-80"
               >
-                {showOptionsPanel ? 'Hide Options' : 'Show Options'}
+                {showOptionsPanel ? 'Ocultar Opções' : 'Mostrar Opções'}
               </Button>
             </div>
             
             {showOptionsPanel && (
               <div className="space-y-4">
                 <p className="text-xs text-discord-text-secondary">
-                  Define parameters that users will provide when using this slash command. 
-                  These will appear as options in Discord when users type the command.
+                  Define parâmetros que os usuários fornecerão ao usar este comando em barra (slash). 
+                  Eles aparecerão como opções no Discord quando os usuários digitarem o comando.
                 </p>
                 
                 <DndContext
@@ -561,7 +582,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                   onClick={addOption}
                   className="w-full py-2 mt-2 border border-dashed border-discord-blurple bg-discord-bg-secondary text-discord-blurple hover:bg-discord-blurple hover:bg-opacity-10"
                 >
-                  + Add Parameter
+                  + Adicionar Parâmetro
                 </Button>
               </div>
             )}
@@ -582,7 +603,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
               ) : (
                 <i className="fas fa-trash-alt mr-2"></i>
               )}
-              Delete
+              Excluir
             </Button>
           )}
           
@@ -593,7 +614,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
             disabled={isProcessing}
             className="px-4 py-2 bg-discord-bg-tertiary text-discord-text-secondary rounded hover:bg-opacity-80"
           >
-            Cancel
+            Cancelar
           </Button>
           
           <Button
@@ -602,7 +623,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
             className="px-4 py-2 bg-discord-blurple text-white rounded hover:bg-opacity-80"
           >
             {isProcessing && <i className="fas fa-circle-notch spin mr-2"></i>}
-            {isEditing ? 'Update' : 'Create'} Command
+            {isEditing ? 'Atualizar' : 'Criar'} Comando
           </Button>
         </div>
       </form>
@@ -653,14 +674,14 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
           onClick={() => removeOption(index)}
           className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
         >
-          Remove
+          Remover
         </Button>
       </div>
       
       {/* Rest of the parameter form fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <Label className="block text-discord-text-secondary text-xs mb-1">Name</Label>
+          <Label className="block text-discord-text-secondary text-xs mb-1">Nome</Label>
           <Input
             value={option.name}
             onChange={(e) => updateOption(index, 'name', e.target.value)}
@@ -670,30 +691,30 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
         </div>
         
         <div>
-          <Label className="block text-discord-text-secondary text-xs mb-1">Type</Label>
+          <Label className="block text-discord-text-secondary text-xs mb-1">Tipo</Label>
           <Select value={option.type} onValueChange={(value) => updateOption(index, 'type', value)}>
             <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
-              <SelectValue placeholder="Select type" />
+            <SelectValue placeholder="Selecione o tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="STRING">String</SelectItem>
-              <SelectItem value="INTEGER">Integer</SelectItem>
-              <SelectItem value="BOOLEAN">Boolean</SelectItem>
-              <SelectItem value="USER">User</SelectItem>
-              <SelectItem value="CHANNEL">Channel</SelectItem>
-              <SelectItem value="ROLE">Role</SelectItem>
-              <SelectItem value="ATTACHMENT">Attachment</SelectItem>
+              <SelectItem value="STRING">Texto</SelectItem>
+              <SelectItem value="INTEGER">Inteiro</SelectItem>
+              <SelectItem value="BOOLEAN">Booleano</SelectItem>
+              <SelectItem value="USER">Usuário</SelectItem>
+              <SelectItem value="CHANNEL">Canal</SelectItem>
+              <SelectItem value="ROLE">Cargo</SelectItem>
+              <SelectItem value="ATTACHMENT">Anexo</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
       
       <div>
-        <Label className="block text-discord-text-secondary text-xs mb-1">Description</Label>
+        <Label className="block text-discord-text-secondary text-xs mb-1">Descrição</Label>
         <Input
           value={option.description}
           onChange={(e) => updateOption(index, 'description', e.target.value)}
-          placeholder="What this parameter does..."
+          placeholder="O que este parâmetro faz..."
           className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
         />
       </div>
@@ -702,7 +723,7 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
         <ToggleSwitch
           checked={option.required}
           onChange={(checked) => updateOption(index, 'required', checked)}
-          label="Required parameter (affects the Discord command UI)"
+          label="Parâmetro obrigatório (afeta a interface do Discord)"
         />
       </div>
       
@@ -721,7 +742,7 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
               apiBody: checked ? (option.autocomplete?.apiBody || {}) : {},
             });
           }}
-          label="Ativar autocomplete para este parâmetro"
+          label="Ativar autocompletar para este parâmetro"
         />
         {option.autocomplete?.enabled && (
           <div className="mt-6 space-y-2 border-discord-blurple">
@@ -782,7 +803,7 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
               />
             </div>
             <div>
-              <Label className="block text-discord-text-secondary text-xs mb-1">Body (JSON, para POST)</Label>
+              <Label className="block text-discord-text-secondary text-xs mb-1">Corpo (JSON, para POST)</Label>
               <Textarea
                 value={JSON.stringify(option.autocomplete?.apiBody || {}, null, 2)}
                 onChange={e => {

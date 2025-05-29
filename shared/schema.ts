@@ -100,6 +100,7 @@ export const commands = pgTable("commands", {
   confirmationMessage: text("confirmation_message"),
   cancelMessage: text("cancel_message"),
   contextMenuType: text("context_menu_type"), // message or user
+  webhookFailureMessage: text("webhook_failure_message"), // New field for custom webhook failure message
 });
 
 export const insertCommandSchema = createInsertSchema(commands).pick({
@@ -120,6 +121,7 @@ export const insertCommandSchema = createInsertSchema(commands).pick({
   confirmationMessage: true,
   cancelMessage: true,
   contextMenuType: true,
+  webhookFailureMessage: true,
 });
 
 // Command Logs

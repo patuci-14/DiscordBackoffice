@@ -10,7 +10,7 @@ interface BotInfoCardProps {
 const BotInfoCard: React.FC<BotInfoCardProps> = ({ config, onEditClick }) => {
   return (
     <div className="bg-discord-bg-secondary rounded-lg p-4 shadow mb-6">
-      <div className="flex items-center mb-4">
+      <div className="flex items-center">
         <div className="h-16 w-16 rounded-full bg-discord-bg-tertiary overflow-hidden mr-4">
           {config.avatarUrl ? (
             <img 

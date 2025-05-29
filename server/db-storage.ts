@@ -127,6 +127,7 @@ export class DbStorage implements IStorage {
     const result = await db.insert(commands).values({
       ...command,
       webhookUrl: command.webhookUrl || null,
+      webhookFailureMessage: command.webhookFailureMessage || null,
       options: command.options || {},
       description: command.description ?? null,
       requiredPermission: command.requiredPermission ?? null,
@@ -153,6 +154,10 @@ export class DbStorage implements IStorage {
       throw new Error('No valid updates provided');
     }
 
+    if ('webhookFailureMessage' in updates) {
+      updateData.webhookFailureMessage = updates.webhookFailureMessage || null;
+    }
+
     const result = await db
       .update(commands)
       .set(updateData)
@@ -172,6 +177,7 @@ export class DbStorage implements IStorage {
   }
 
   async incrementCommandUsageByBotId(botId: string, commandName: string): Promise<void> {
+    // Increment usageCount for the command
     await db.update(commands)
       .set({
         usageCount: sql`${commands.usageCount} + 1`
@@ -180,6 +186,14 @@ export class DbStorage implements IStorage {
         eq(commands.botId, botId),
         eq(commands.name, commandName)
       ));
+
+    // Increment commandsUsed for the bot in botStats
+    await db.update(botStats)
+      .set({
+        commandsUsed: sql`${botStats.commandsUsed} + 1`,
+        lastUpdate: new Date()
+      })
+      .where(eq(botStats.botId, botId));
   }
 
   async getCommandsUsedLast24Hours(botId: string): Promise<number> {
@@ -196,7 +210,10 @@ export class DbStorage implements IStorage {
 
   // Command logs
   async getCommandLogs(botId: string, limit?: number, offset?: number): Promise<CommandLog[]> {
-    const query = db.select().from(commandLogs).where(eq(commandLogs.botId, botId));
+    const query = db.select()
+      .from(commandLogs)
+      .where(eq(commandLogs.botId, botId))
+      .orderBy(desc(commandLogs.timestamp));
     if (limit !== undefined) query.limit(limit);
     if (offset !== undefined) query.offset(offset);
     return await query;
@@ -217,7 +234,8 @@ export class DbStorage implements IStorage {
       .where(and(
         eq(commandLogs.botId, botId),
         eq(commandLogs.serverId, serverId)
-      ));
+      ))
+      .orderBy(desc(commandLogs.timestamp));
     if (limit !== undefined) query.limit(limit);
     if (offset !== undefined) query.offset(offset);
     return await query;
@@ -241,7 +259,8 @@ export class DbStorage implements IStorage {
       .where(and(
         eq(commandLogs.botId, botId),
         eq(commandLogs.userId, userId)
-      ));
+      ))
+      .orderBy(desc(commandLogs.timestamp));
     if (limit !== undefined) query.limit(limit);
     if (offset !== undefined) query.offset(offset);
     return await query;
@@ -265,7 +284,8 @@ export class DbStorage implements IStorage {
       .where(and(
         eq(commandLogs.botId, botId),
         eq(commandLogs.commandName, commandName)
-      ));
+      ))
+      .orderBy(desc(commandLogs.timestamp));
     if (limit !== undefined) query.limit(limit);
     if (offset !== undefined) query.offset(offset);
     return await query;

@@ -67,12 +67,12 @@ const Logs: React.FC = () => {
       onClick={handleExportLogs}
       className="bg-discord-bg-secondary hover:bg-discord-bg-tertiary px-4 py-2 rounded-md text-sm inline-flex items-center"
     >
-      <i className="fas fa-download mr-2"></i> Export Logs
+      <i className="fas fa-download mr-2"></i> Exportar Logs
     </Button>
   );
 
   return (
-    <AppShell title="Command Logs" actions={exportButton}>
+    <AppShell title="Logs de Comandos" actions={exportButton}>
       {/* Filters */}
       <LogFilters onFilterChange={handleFilterChange} />
       

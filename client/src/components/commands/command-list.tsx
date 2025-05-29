@@ -38,13 +38,15 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
   const getTypeBadgeClass = (type: string) => {
     switch (type) {
       case 'text':
-        return 'bg-discord-blurple bg-opacity-20';
+        return 'bg-blue-800 text-blue-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300';
       case 'slash':
-        return 'bg-discord-green bg-opacity-20';
+        return 'bg-green-800 text-green-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-green-900 dark:text-green-300';
       case 'embed':
-        return 'bg-discord-yellow bg-opacity-20';
+        return 'bg-yellow-800 text-yellow-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-yellow-900 dark:text-yellow-300';
+      case 'context-menu':
+        return 'bg-purple-800 text-purple-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-purple-900 dark:text-purple-300';
       default:
-        return 'bg-discord-blurple bg-opacity-20';
+        return 'bg-blue-800 text-blue-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300';
     }
   };
 
@@ -62,7 +64,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Search commands..."
+                  placeholder="Procurar comandos..."
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -83,20 +85,20 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                 }}
               >
                 <SelectTrigger className="px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded w-full md:w-auto">
-                  <SelectValue placeholder="Filter by type" />
+                  <SelectValue placeholder="Filtrar por tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="text">Text Commands</SelectItem>
-                  <SelectItem value="slash">Slash Commands</SelectItem>
-                  <SelectItem value="embed">Embed Commands</SelectItem>
+                  <SelectItem value="all">Todos os Tipos</SelectItem>
+                  <SelectItem value="text">Comandos de Texto</SelectItem>
+                  <SelectItem value="slash">Comandos de Slash</SelectItem>
+                  <SelectItem value="embed">Comandos de Embed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           
           <div className="flex items-center text-discord-text-secondary text-sm">
-            <span>Total: {filteredCommands.length} commands</span>
+            <span>Total: {filteredCommands.length} comandos</span>
           </div>
         </div>
       </CardHeader>
@@ -106,15 +108,15 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
           <table className="min-w-full divide-y divide-gray-700">
             <thead>
               <tr>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Command</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Type</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Description</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Response</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Webhook</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Permissions</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Usage</th>
-                <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Status</th>
-                <th className="px-4 py-2 text-right text-xs text-discord-text-secondary">Actions</th>
+                <th className="px-4 py-2 text-left text-base text-discord-text-primary">Comando</th>
+                <th className="px-4 py-2 text-left text-base text-discord-text-primary">Tipo</th>
+                <th className="px-4 py-2 text-left text-base text-discord-text-primary">Descrição</th>
+                <th className="px-4 py-2 text-left text-base text-discord-text-primary">Resposta</th>
+                <th className="px-4 py-2 text-left text-base text-discord-text-primary">Possui Webhook</th>
+                <th className="px-4 py-2 text-left text-base text-discord-text-primary">Permissões</th>
+                <th className="px-4 py-2 text-left text-base text-discord-text-primary">Qtd. Execuções</th>
+                <th className="px-4 py-2 text-left text-base text-discord-text-primary">Status</th>
+                <th className="px-4 py-2 text-center text-base text-discord-text-primary">Configurações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
@@ -157,7 +159,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                       {command.type === 'slash' ? '/' : '!'}{command.name}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 ${getTypeBadgeClass(command.type)} rounded text-xs`}>
+                      <span className={`px-8 py-1 ${getTypeBadgeClass(command.type)} rounded text-xs`}>
                         {command.type.charAt(0).toUpperCase() + command.type.slice(1)}
                       </span>
                     </td>
@@ -171,10 +173,13 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                       {command.webhookUrl ? (
                         <span className="flex items-center">
                           <span className="h-2 w-2 rounded-full bg-discord-green mr-1"></span>
-                          <span className="truncate max-w-[120px]" title={command.webhookUrl}>Configured</span>
+                          <span className="truncate max-w-[120px]" title={command.webhookUrl}>Sim</span>
                         </span>
                       ) : (
-                        <span className="text-discord-text-secondary">None</span>
+                        <span className="flex items-center">
+                          <span className="h-2 w-2 rounded-full bg-discord-red mr-1"></span>
+                          <span className="truncate max-w-[120px]">Não</span>
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm capitalize">{command.requiredPermission}</td>
@@ -182,10 +187,10 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                     <td className="px-4 py-3 text-sm">
                       <span className="flex items-center">
                         <span className={`h-2 w-2 rounded-full ${command.active ? 'bg-discord-green' : 'bg-discord-red'} mr-1`}></span>
-                        <span>{command.active ? 'Active' : 'Disabled'}</span>
+                        <span>{command.active ? 'Ativo' : 'Inativo'}</span>
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-center">
                       <Button
                         variant="ghost"
                         onClick={() => onEdit(command.id)}
@@ -200,8 +205,8 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                 <tr>
                   <td colSpan={9} className="px-4 py-4 text-center text-discord-text-secondary">
                     {searchTerm || typeFilter !== 'all'
-                      ? 'No commands match your search or filter'
-                      : 'No commands found. Create your first command to get started.'}
+                      ? 'Nenhum comando encontrado'
+                      : 'Nenhum comando encontrado. Crie seu primeiro comando para começar.'}
                   </td>
                 </tr>
               )}
@@ -218,7 +223,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
             />
             <div className="text-sm text-discord-text-secondary">
               {filteredCommands.length > 0 && (
-                <>Showing {paginatedCommands.length} of {filteredCommands.length} commands</>
+                <>Mostrando {paginatedCommands.length} de {filteredCommands.length} comandos</>
               )}
             </div>
           </div>
@@ -229,7 +234,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
               onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
               className="px-3 py-1 rounded text-sm"
             >
-              Previous
+              Anterior
             </Button>
             <Button
               variant={currentPage >= maxPage ? "outline" : "default"}
@@ -237,7 +242,7 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
               onClick={() => setCurrentPage(Math.min(maxPage, currentPage + 1))}
               className={`px-3 py-1 rounded text-sm ${currentPage < maxPage ? 'bg-discord-blurple' : 'bg-discord-bg-tertiary text-discord-text-secondary'}`}
             >
-              Next
+              Próximo
             </Button>
           </div>
         </div>

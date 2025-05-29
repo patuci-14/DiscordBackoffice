@@ -34,7 +34,8 @@ const commandValidator = z.object({
       apiBody: z.record(z.any()).optional(),
       parameters: z.record(z.any()).optional()
     }).optional()
-  })).optional()
+  })).optional(),
+  webhookFailureMessage: z.string().nullable().optional(),
 });
 
 export const getCommands = async (req: Request, res: Response) => {
@@ -308,5 +309,19 @@ export const deleteCommand = async (req: Request, res: Response) => {
       success: false,
       error: 'Internal server error deleting command' 
     });
+  }
+};
+
+export const getCommandsStats = async (req: Request, res: Response) => {
+  try {
+    const { botId } = req.query;
+    if (!botId) {
+      return res.status(400).json({ success: false, error: 'Missing botId' });
+    }
+    const count = await storage.getCommandsUsedLast24Hours(botId as string);
+    return res.json({ count });
+  } catch (error) {
+    console.error('Error fetching command stats:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };

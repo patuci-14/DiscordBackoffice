@@ -167,7 +167,7 @@ class DiscordBot {
             message.author.id,
             message.author.tag,
             command.name,
-            'permission_denied',
+            'Permissão Negada',
             {},
             undefined,
             undefined,
@@ -202,9 +202,13 @@ class DiscordBot {
           await message.channel.send(response);
         }
         
-        // Call webhook if configured
+        // Initialize webhook status variables
+        let webhookStatus: 'Sucesso' | 'Erro' | 'Permissão Negada' | undefined = undefined;
+        let webhookErrorMessage = undefined;
+
         if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
           console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
+          
           try {
             // Prepare webhook payload with rich context information
             const webhookPayload = {
@@ -238,63 +242,28 @@ class DiscordBot {
                 'Content-Type': 'application/json',
                 'User-Agent': 'Discord-Bot-Manager'
               },
-              timeout: 5000, // 5 second timeout to prevent hanging
-              validateStatus: status => status < 500 // Accept all non-server error responses
+              timeout: 5000,
+              validateStatus: status => status < 500
             });
             
             if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
               console.log(`Webhook triggered successfully for command ${command.name}`);
-              // Update command log with callback success
-              await this.createCommandLogEntry(
-                message.guild.id,
-                message.guild.name,
-                message.channel.id,
-                this.getChannelName(message.channel),
-                message.author.id,
-                message.author.tag,
-                command.name,
-                'success',
-                {},
-                'success',
-                undefined,
-                new Date()
-              );
             } else {
               console.warn(`Webhook for command ${command.name} returned status: ${webhookResponse.status}`);
-              // Update command log with callback failure
-              await this.createCommandLogEntry(
-                message.guild.id,
-                message.guild.name,
-                message.channel.id,
-                this.getChannelName(message.channel),
-                message.author.id,
-                message.author.tag,
-                command.name,
-                'success',
-                {},
-                'failed',
-                `HTTP ${webhookResponse.status}`,
-                new Date()
-              );
+              webhookStatus = 'Erro';
+              webhookErrorMessage = `HTTP ${webhookResponse.status}`;
+              if (command.webhookFailureMessage) {
+                await message.channel.send(command.webhookFailureMessage);
+              }
             }
           } catch (error) {
-            const webhookError = error instanceof Error ? error : new Error('Unknown error');
-            console.error(`Error sending webhook for command ${command.name}:`, webhookError.message);
-            // Update command log with callback error
-            await this.createCommandLogEntry(
-              message.guild.id,
-              message.guild.name,
-              message.channel.id,
-              this.getChannelName(message.channel),
-              message.author.id,
-              message.author.tag,
-              command.name,
-              'success',
-              {},
-              'failed',
-              webhookError.message,
-              new Date()
-            );
+            const errorObj = error instanceof Error ? error : new Error('Unknown error');
+            console.error(`Error sending webhook for command ${command.name}:`, errorObj.message);
+            webhookStatus = 'Erro';
+            webhookErrorMessage = errorObj.message;
+            if (command.webhookFailureMessage) {
+              await message.channel.send(command.webhookFailureMessage);
+            }
           }
         } else if (command.webhookUrl) {
           console.warn(`Invalid webhook URL format for command ${command.name}: ${command.webhookUrl}`);
@@ -307,7 +276,7 @@ class DiscordBot {
           });
         }
         
-        // Log command usage
+        // Log command usage once with all relevant information
         await this.createCommandLogEntry(
           message.guild.id,
           message.guild.name,
@@ -316,10 +285,10 @@ class DiscordBot {
           message.author.id,
           message.author.tag,
           command.name,
-          'success',
+          'Sucesso',
           {},
-          undefined,
-          undefined,
+          webhookStatus,
+          webhookErrorMessage,
           new Date()
         );
       } catch (error) {
@@ -334,7 +303,7 @@ class DiscordBot {
           message.author.id,
           message.author.tag,
           command.name,
-          'failed',
+          'Erro',
           {},
           undefined,
           String(error),
@@ -1086,7 +1055,7 @@ class DiscordBot {
           interaction.user.id,
           interaction.user.tag,
           command.name,
-          'permission_denied',
+          'Permissão Negada',
           undefined,
           undefined,
           new Date().toISOString()
@@ -1268,7 +1237,7 @@ class DiscordBot {
         interaction.user.id,
         interaction.user.tag,
         command.name,
-        'failed',
+        'Erro',
         {},
         undefined,
         String(error),
@@ -1309,6 +1278,8 @@ class DiscordBot {
       .replace('{user}', interaction.user.username)
       .replace('{server}', interaction.guild!.name)
       .replace('{ping}', this.client.ws.ping.toString());
+
+      console.log('Dados para incrementar o uso do comando: ', this.client.user?.id || 'unknown', command.name);
     
     // Increment usage count
     await storage.incrementCommandUsageByBotId(this.client.user?.id || 'unknown', command.name);
@@ -1333,7 +1304,7 @@ class DiscordBot {
     }
     
     // Lógica de log único
-    let callbackStatus: string | undefined = undefined;
+    let callbackStatus: 'Sucesso' | 'Erro' | 'Permissão Negada' | undefined = undefined;
     let callbackError: string | undefined = undefined;
     let callbackTimestamp: Date | undefined = undefined;
     
@@ -1390,16 +1361,30 @@ class DiscordBot {
         });
         callbackTimestamp = new Date();
         if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
-          callbackStatus = 'success';
+          callbackStatus = 'Sucesso';
         } else {
-          callbackStatus = 'failed';
+          callbackStatus = 'Erro';
           callbackError = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}`;
+          if (command.webhookFailureMessage) {
+            if (interaction.deferred) {
+              await interaction.followUp(command.webhookFailureMessage);
+            } else {
+              await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
+            }
+          }
         }
       } catch (error) {
-        callbackStatus = 'failed';
+        callbackStatus = 'Erro';
         callbackTimestamp = new Date();
         callbackError = error instanceof Error ? error.message : 'Unknown webhook error';
         console.error(`Error calling webhook for command ${command.name}:`, callbackError);
+        if (command.webhookFailureMessage) {
+          if (interaction.deferred) {
+            await interaction.followUp(command.webhookFailureMessage + "\n" + callbackError);
+          } else {
+            await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
+          }
+        }
       }
     }
 
@@ -1413,7 +1398,7 @@ class DiscordBot {
         interaction.user.id,
         interaction.user.tag,
         command.name,
-        'success',
+        'Sucesso',
         parameters,
         callbackStatus,
         callbackError,
@@ -1450,9 +1435,9 @@ class DiscordBot {
     userId: string,
     username: string,
     commandName: string,
-    status: 'success' | 'failed' | 'permission_denied',
+    status: 'Sucesso' | 'Erro' | 'Permissão Negada',
     parameters: Record<string, any> = {},
-    callbackStatus?: string,
+    callbackStatus?: 'Sucesso' | 'Erro' | 'Permissão Negada',
     callbackError?: string,
     callbackTimestamp?: Date
   ): Promise<void> {
@@ -1510,7 +1495,7 @@ class DiscordBot {
         await interaction.reply({ content: response, ephemeral: true });
 
         // Handle webhook if configured
-        let callbackStatus: string | undefined = undefined;
+        let callbackStatus: 'Sucesso' | 'Erro' | 'Permissão Negada' | undefined = undefined;
         let callbackError: string | undefined = undefined;
         let callbackTimestamp: Date | undefined = undefined;
 
@@ -1551,15 +1536,21 @@ class DiscordBot {
             });
 
             callbackTimestamp = new Date();
-            callbackStatus = webhookResponse.status >= 200 && webhookResponse.status < 300 ? 'success' : 'failed';
-            if (callbackStatus === 'failed') {
+            callbackStatus = webhookResponse.status >= 200 && webhookResponse.status < 300 ? 'Sucesso' : 'Erro';
+            if (callbackStatus === 'Erro') {
               callbackError = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}`;
+              if (command.webhookFailureMessage) {
+                await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
+              }
             }
           } catch (error) {
-            callbackStatus = 'failed';
+            callbackStatus = 'Erro';
             callbackTimestamp = new Date();
             callbackError = error instanceof Error ? error.message : 'Unknown webhook error';
             console.error(`Error calling webhook for command ${command.name}:`, callbackError);
+            if (command.webhookFailureMessage) {
+              await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
+            }
           }
         }
 
@@ -1572,7 +1563,7 @@ class DiscordBot {
           interaction.user.id,
           interaction.user.tag,
           command.name,
-          'success',
+          'Sucesso',
           { targetId, targetName },
           callbackStatus,
           callbackError,

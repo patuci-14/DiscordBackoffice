@@ -40,14 +40,14 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
   // Function to get the status badge class
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
-      case 'success':
-        return 'bg-discord-green bg-opacity-20 text-discord-white';
-      case 'failed':
-        return 'bg-discord-red bg-opacity-20 text-discord-white';
-      case 'permission_denied':
-        return 'bg-discord-yellow bg-opacity-20 text-discord-white';
+      case 'Sucesso':
+        return 'bg-green-800 text-green-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-green-900 dark:text-green-300';
+      case 'Erro':
+        return 'bg-red-800 text-red-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-red-900 dark:text-red-300';
+      case 'Permissão Negada':
+        return 'bg-red-800 text-red-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-red-900 dark:text-red-300';
       default:
-        return 'bg-discord-text-secondary bg-opacity-20 text-discord-white';
+        return 'bg-blue-800 text-blue-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300';
     }
   };
 
@@ -55,14 +55,14 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
   const getCallbackStatusBadgeClass = (status: string | null | undefined) => {
     if (!status) return 'bg-discord-text-secondary bg-opacity-20 text-discord-white';
     switch (status) {
-      case 'success':
-        return 'bg-discord-green bg-opacity-20 text-discord-white';
-      case 'failed':
-        return 'bg-discord-red bg-opacity-20 text-discord-white';
-      case 'pending':
-        return 'bg-discord-yellow bg-opacity-20 text-discord-white';
+      case 'Sucesso':
+        return 'bg-green-800 text-green-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-green-900 dark:text-green-300';
+      case 'Erro':
+        return 'bg-red-800 text-red-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-red-900 dark:text-red-300';
+      case 'Pendente':
+        return 'bg-yellow-800 text-yellow-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-yellow-900 dark:text-yellow-300';
       default:
-        return 'bg-discord-text-secondary bg-opacity-20 text-discord-white';
+        return 'bg-blue-800 text-blue-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300';
     }
   };
 
@@ -107,14 +107,14 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
               <table className="min-w-full divide-y divide-gray-700">
                 <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Timestamp</th>
-                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Server</th>
-                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Channel</th>
-                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">User</th>
-                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Command</th>
-                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Status</th>
-                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Callback</th>
-                    <th className="px-4 py-2 text-left text-xs text-discord-text-secondary">Parâmetros</th>
+                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Dt. Hora</th>
+                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Servidor</th>
+                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Canal</th>
+                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Usuário</th>
+                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Comando</th>
+                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Status</th>
+                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Callback</th>
+                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Parâmetros</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
@@ -126,12 +126,12 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
                       <td className="px-4 py-2 text-sm whitespace-nowrap">{log.username}</td>
                       <td className="px-4 py-2 text-sm whitespace-nowrap">{log.commandName}</td>
                       <td className="px-4 py-2 text-sm whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded text-xs ${getStatusBadgeClass(log.status || '')}`}>
+                        <span className={`px-8 py-1 rounded text-xs ${getStatusBadgeClass(log.status || '')}`}>
                           {log.status}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-sm whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded text-xs ${getCallbackStatusBadgeClass(log.callbackStatus || '')}`}>
+                        <span className={`px-8 py-1 rounded text-xs ${getCallbackStatusBadgeClass(log.callbackStatus || '')}`}>
                           {log.callbackStatus || 'N/A'}
                         </span>
                       </td>
@@ -175,8 +175,8 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
                   pageSizeOptions={[10, 25, 50, 100]}
                 />
                 <div className="text-sm text-discord-text-secondary">
-                  Showing {offset + 1} to {Math.min(offset + logs.length, total)} of {total} logs
-                  {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+                  Mostrando {offset + 1} até {Math.min(offset + logs.length, total)} de {total} logs
+                  {totalPages > 1 && ` • Página ${currentPage} de ${totalPages}`}
                 </div>
               </div>
               <div className="flex space-x-2">
@@ -186,7 +186,7 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
                   onClick={() => goToPage(Math.max(0, offset - limit))}
                   className="px-3 py-1 bg-discord-bg-tertiary rounded text-sm text-discord-text-secondary"
                 >
-                  Previous
+                  Anterior
                 </Button>
                 <Button
                   variant={hasNext ? "default" : "outline"}
@@ -194,7 +194,7 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
                   onClick={() => goToPage(offset + limit)}
                   className={`px-3 py-1 rounded text-sm ${hasNext ? 'bg-discord-blurple' : 'bg-discord-bg-tertiary text-discord-text-secondary'}`}
                 >
-                  Next
+                  Próximo
                 </Button>
               </div>
             </div>

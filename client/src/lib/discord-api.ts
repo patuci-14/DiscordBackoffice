@@ -297,8 +297,8 @@ export async function deletePlugin(id: number): Promise<{ success: boolean; mess
   }
 }
 
-export async function getCommandsUsedLast24Hours(): Promise<number> {
-  const response = await fetch('/api/commands/stats');
+export async function getCommandsUsedLast24Hours(botId: string): Promise<number> {
+  const response = await fetch(`/api/commands/stats?botId=${botId}`);
   if (!response.ok) {
     throw new Error('Failed to fetch command stats');
   }

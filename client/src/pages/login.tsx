@@ -66,7 +66,7 @@ const Login: React.FC = () => {
           <div className="inline-block">
             <i className="fas fa-circle-notch spin text-4xl text-discord-blurple"></i>
           </div>
-          <p className="mt-4 text-lg">Loading...</p>
+          <p className="mt-4 text-lg">Carregando...</p>
         </div>
       </div>
     );
@@ -78,18 +78,18 @@ const Login: React.FC = () => {
         <CardContent className="p-0">
           <div className="text-center mb-8">
             <i className="fab fa-discord text-discord-blurple text-5xl mb-4"></i>
-            <h1 className="text-2xl font-bold text-white">Bot Manager</h1>
-            <p className="text-discord-text-secondary mt-2">Connect your Discord bot to manage it</p>
+            <h1 className="text-2xl font-bold text-white">Gerenciador de Bots</h1>
+            <p className="text-discord-text-secondary mt-2">Conecte seu bot do Discord para gerenciá-lo</p>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="bot-token" className="block text-sm font-medium mb-1 text-white">Bot Token</label>
+              <label htmlFor="bot-token" className="block text-sm font-medium mb-1 text-white">Token do Bot</label>
               <div className="relative">
                 <Input
                   id="bot-token"
                   type={showToken ? "text" : "password"}
-                  placeholder="Enter your bot token"
+                  placeholder="Digite o token do bot"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   className="w-full px-4 py-2 pr-[35px] bg-discord-bg-tertiary border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-discord-blurple focus:border-transparent text-white"
@@ -102,7 +102,7 @@ const Login: React.FC = () => {
                   <i className={showToken ? "far fa-eye-slash" : "far fa-eye"}></i>
                 </button>
               </div>
-              <p className="text-xs text-discord-text-secondary mt-1">Your token is stored securely and never exposed to the frontend</p>
+              <p className="text-xs text-discord-text-secondary mt-1">Seu token é armazenado de forma segura e nunca é exposto ao frontend</p>
             </div>
             
             <div className="pt-2">
@@ -117,7 +117,7 @@ const Login: React.FC = () => {
                     Connecting...
                   </>
                 ) : (
-                  'Connect Bot'
+                  'Conectar Bot'
                 )}
               </Button>
             </div>
