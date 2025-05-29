@@ -1303,27 +1303,25 @@ class DiscordBot {
       }
     }
 
-    // Typing loop for webhook
-    let typingInterval: NodeJS.Timeout | undefined;
-    if (
-      interaction.channel &&
-      'sendTyping' in interaction.channel &&
-      typeof interaction.channel.sendTyping === 'function'
-    ) {
-      typingInterval = setInterval(() => {
-        (interaction.channel as any).sendTyping().catch(() => {});
-      }, 8000);
-      // Dispara imediatamente também
-      (interaction.channel as any).sendTyping().catch(() => {});
-    }
-
     // Lógica de log único
     let callbackStatus: 'Sucesso' | 'Erro' | 'Permissão Negada' | undefined = undefined;
     let callbackError: string | undefined = undefined;
     let callbackTimestamp: Date | undefined = undefined;
     
     if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
-      console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
+      // Typing loop for webhook
+      let typingInterval: NodeJS.Timeout | undefined;
+      if (
+        interaction.channel &&
+        'sendTyping' in interaction.channel &&
+        typeof interaction.channel.sendTyping === 'function'
+      ) {
+        typingInterval = setInterval(() => {
+          (interaction.channel as any).sendTyping().catch(() => {});
+        }, 8000);
+        // Dispara imediatamente também
+        (interaction.channel as any).sendTyping().catch(() => {});
+      }
       try {
         // Prepare webhook payload with rich context information
         const webhookPayload: any = {
