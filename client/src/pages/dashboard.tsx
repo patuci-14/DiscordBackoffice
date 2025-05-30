@@ -90,7 +90,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <AppShell title="Dashboard" actions={refreshButton}>
-      
       {/* Bot Info Card */}
       {isBotInfoLoading ? (
         <div className="bg-discord-bg-secondary rounded-lg p-4 shadow mb-6 animate-pulse">
@@ -222,9 +221,15 @@ const Dashboard: React.FC = () => {
                           <div className="flex items-center">
                             {getActivityIcon(activity)}
                             <span>
-                              {activity.type === "command"
-                                ? `Comando: ${activity.details}`
-                                : activity.type}
+                              {activity.type === "command" ? (
+                                <span
+                                  dangerouslySetInnerHTML={{
+                                    __html: activity.details || '',
+                                  }}
+                                />
+                              ) : (
+                                activity.type
+                              )}
                             </span>
                           </div>
                         </td>

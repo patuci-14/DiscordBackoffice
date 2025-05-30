@@ -224,7 +224,7 @@ export const getBotStats = async (req: Request, res: Response) => {
     });
     
     // Get recent activity (command logs)
-    const recentLogs = await storage.getCommandLogs(botId as string, 5, 0);
+    const recentLogs = await storage.getCommandLogs(botId as string, 10, 0);
     
     return res.status(200).json({
       success: true,
@@ -235,7 +235,7 @@ export const getBotStats = async (req: Request, res: Response) => {
         user: log.username,
         server: log.serverName,
         time: log.timestamp,
-        details: `${log.commandName} em #${log.channelName}`
+        details: `Comando: <b>${log.commandName}</b> em <b>#${log.channelName}</b>`
       }))
     });
   } catch (error) {

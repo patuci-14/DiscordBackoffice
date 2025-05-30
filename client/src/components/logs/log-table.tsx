@@ -41,13 +41,13 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'Sucesso':
-        return 'bg-green-800 text-green-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-green-900 dark:text-green-300';
+        return 'bg-discord-green';
       case 'Erro':
-        return 'bg-red-800 text-red-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-red-900 dark:text-red-300';
+        return 'bg-discord-red';
       case 'Permissão Negada':
-        return 'bg-red-800 text-red-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-red-900 dark:text-red-300';
+        return 'bg-discord-red';
       default:
-        return 'bg-blue-800 text-blue-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300';
+        return 'bg-discord-blue';
     }
   };
 
@@ -56,13 +56,13 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
     if (!status) return 'bg-discord-text-secondary bg-opacity-20 text-discord-white';
     switch (status) {
       case 'Sucesso':
-        return 'bg-green-800 text-green-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-green-900 dark:text-green-300';
+        return 'bg-discord-green';
       case 'Erro':
-        return 'bg-red-800 text-red-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-red-900 dark:text-red-300';
+        return 'bg-discord-red';
       case 'Pendente':
-        return 'bg-yellow-800 text-yellow-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-yellow-900 dark:text-yellow-300';
+        return 'bg-discord-yellow';
       default:
-        return 'bg-blue-800 text-blue-100 text-sm font-medium me-2 px-2.5 py-0.5 rounded-sm dark:bg-blue-900 dark:text-blue-300';
+        return 'bg-discord-blue';
     }
   };
 
@@ -107,35 +107,37 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
               <table className="min-w-full divide-y divide-gray-700">
                 <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Dt. Hora</th>
+                    <th className="px-4 py-2 text-right text-base text-discord-text-primary">Dt. Hora</th>
                     <th className="px-4 py-2 text-left text-base text-discord-text-primary">Servidor</th>
                     <th className="px-4 py-2 text-left text-base text-discord-text-primary">Canal</th>
                     <th className="px-4 py-2 text-left text-base text-discord-text-primary">Usuário</th>
                     <th className="px-4 py-2 text-left text-base text-discord-text-primary">Comando</th>
                     <th className="px-4 py-2 text-left text-base text-discord-text-primary">Status</th>
                     <th className="px-4 py-2 text-left text-base text-discord-text-primary">Callback</th>
-                    <th className="px-4 py-2 text-left text-base text-discord-text-primary">Parâmetros</th>
+                    <th className="px-4 py-2 text-center text-base text-discord-text-primary">Parâmetros</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
                   {logs.map((log, index) => (
                     <tr key={log.id || index} className="hover:bg-discord-bg-tertiary">
-                      <td className="px-4 py-2 text-sm whitespace-nowrap">{formatDate(log.timestamp)}</td>
+                      <td className="px-4 py-2 text-right text-sm whitespace-nowrap">{formatDate(log.timestamp)}</td>
                       <td className="px-4 py-2 text-sm whitespace-nowrap">{log.serverName}</td>
                       <td className="px-4 py-2 text-sm whitespace-nowrap">{log.channelName}</td>
                       <td className="px-4 py-2 text-sm whitespace-nowrap">{log.username}</td>
                       <td className="px-4 py-2 text-sm whitespace-nowrap">{log.commandName}</td>
-                      <td className="px-4 py-2 text-sm whitespace-nowrap">
-                        <span className={`px-8 py-1 rounded text-xs ${getStatusBadgeClass(log.status || '')}`}>
-                          {log.status}
+                      <td className="px-4 py-2 text-center text-sm whitespace-nowrap">
+                        <span className="flex items-center">
+                          <span className={`h-2 w-2 rounded-full mr-1 ${getStatusBadgeClass(log.status || '')}`}></span>
+                          <span className="truncate max-w-[120px]">{log.status}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-sm whitespace-nowrap">
-                        <span className={`px-8 py-1 rounded text-xs ${getCallbackStatusBadgeClass(log.callbackStatus || '')}`}>
-                          {log.callbackStatus || 'N/A'}
+                      <td className="px-4 py-2 text-center text-sm whitespace-nowrap">
+                        <span className="flex items-center">
+                          <span className={`h-2 w-2 rounded-full mr-1 ${getCallbackStatusBadgeClass(log.callbackStatus || '')}`}></span>
+                          <span className="truncate max-w-[120px]">{log.callbackStatus}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-sm">
+                      <td className="px-4 py-2 text-center text-sm">
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
