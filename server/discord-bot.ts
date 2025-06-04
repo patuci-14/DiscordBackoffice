@@ -3,7 +3,7 @@ import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder,
   ChatInputCommandInteraction, TextChannel, DMChannel, VoiceChannel, Channel, BaseGuildTextChannel,
   GuildMember, PartialGuildMember, GuildBasedChannel, AutocompleteInteraction, Role,
   ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, ActivityType,
-  ContextMenuCommandInteraction, User } from 'discord.js';
+  ContextMenuCommandInteraction, User, ModalBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction } from 'discord.js';
 import axios from 'axios';
 import { storage } from './storage';
 import { BotConfig, Server, InsertServer, Command, InsertCommandLog, CommandOption, BotStat } from '@shared/schema';
@@ -11,6 +11,18 @@ import { handleMemberJoin, handleMemberLeave } from './features/welcome-messages
 import { handleMessage as handleAutoMod } from './features/auto-moderation';
 import { handleMessageDelete, handleMemberUpdate } from './features/logging';
 import { eq } from 'drizzle-orm';
+
+// Define modal field interface
+interface ModalField {
+  customId: string;
+  label: string;
+  style: 'SHORT' | 'PARAGRAPH';
+  placeholder?: string;
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  value?: string;
+}
 
 class DiscordBot {
   private client!: Client;
@@ -109,6 +121,8 @@ class DiscordBot {
         await this.handleAutocomplete(interaction);
       } else if (interaction.isContextMenuCommand()) {
         await this.handleContextMenuCommand(interaction);
+      } else if (interaction.isModalSubmit()) {
+        await this.handleModalSubmit(interaction);
       }
     });
     
@@ -560,15 +574,15 @@ class DiscordBot {
       
       const rest = new REST({ version: '10' }).setToken(this.token);
       
-      // Get active slash commands only
+      // Get all active commands
       const commands = Array.from(this.commands.values()).filter(cmd => 
-        cmd.active && cmd.type === 'slash'
+        cmd.active && (cmd.type === 'slash' || cmd.type === 'context-menu' || cmd.type === 'modal')
       );
       
-      console.log(`Found ${commands.length} active slash commands to register`);
+      console.log(`Found ${commands.length} active commands to register`);
       
       if (commands.length === 0) {
-        console.log('No active slash commands to register');
+        console.log('No active commands to register');
         return;
       }
 
@@ -923,7 +937,7 @@ class DiscordBot {
       
       // Get all active commands
       const commands = Array.from(this.commands.values()).filter(cmd => 
-        cmd.active && (cmd.type === 'slash' || cmd.type === 'context-menu')
+        cmd.active && (cmd.type === 'slash' || cmd.type === 'context-menu' || cmd.type === 'modal')
       );
       
       if (commands.length === 0) {
@@ -1069,6 +1083,41 @@ class DiscordBot {
     }
     
     try {
+      // Check if command requires a modal
+      if (command.type === 'modal' && command.modalFields) {
+        const modal = new ModalBuilder()
+          .setCustomId(command.modalFields.customId)
+          .setTitle(command.modalFields.title);
+
+        // Add text input components
+        const rows = command.modalFields.fields.map((field: ModalField) => {
+          const textInput = new TextInputBuilder()
+            .setCustomId(field.customId)
+            .setLabel(field.label)
+            .setStyle(field.style === 'SHORT' ? TextInputStyle.Short : TextInputStyle.Paragraph)
+            .setRequired(field.required || false);
+
+          if (field.placeholder) {
+            textInput.setPlaceholder(field.placeholder);
+          }
+          if (field.minLength) {
+            textInput.setMinLength(field.minLength);
+          }
+          if (field.maxLength) {
+            textInput.setMaxLength(field.maxLength);
+          }
+          if (field.value) {
+            textInput.setValue(field.value);
+          }
+
+          return new ActionRowBuilder<TextInputBuilder>().addComponents(textInput);
+        });
+
+        modal.addComponents(rows);
+        await interaction.showModal(modal);
+        return;
+      }
+      
       // Collect parameters from the interaction
       const parameters: Record<string, any> = {};
       if (interaction.options && interaction.options.data.length > 0) {
@@ -1246,8 +1295,12 @@ class DiscordBot {
     }
   }
 
-  // Extract command processing logic to a separate method
-  private async processCommand(command: Command, interaction: ChatInputCommandInteraction, parameters: Record<string, any>) {
+  // Update the processCommand method signature to accept both interaction types
+  private async processCommand(
+    command: Command, 
+    interaction: ChatInputCommandInteraction | ModalSubmitInteraction,
+    parameters: Record<string, any>
+  ) {
     // Defer reply if not already deferred
     if (!interaction.deferred && !interaction.replied) {
       await interaction.deferReply({ ephemeral: command.deleteUserMessage || false });
@@ -1278,8 +1331,6 @@ class DiscordBot {
       .replace('{user}', interaction.user.username)
       .replace('{server}', interaction.guild!.name)
       .replace('{ping}', this.client.ws.ping.toString());
-
-      console.log('Dados para incrementar o uso do comando: ', this.client.user?.id || 'unknown', command.name);
     
     // Increment usage count
     await storage.incrementCommandUsageByBotId(this.client.user?.id || 'unknown', command.name);
@@ -1302,29 +1353,11 @@ class DiscordBot {
         await interaction.followUp({ content: response, ephemeral: command.deleteUserMessage || false });
       }
     }
-
-    // Lógica de log único
-    let callbackStatus: 'Sucesso' | 'Erro' | 'Permissão Negada' | undefined = undefined;
-    let callbackError: string | undefined = undefined;
-    let callbackTimestamp: Date | undefined = undefined;
     
+    // Handle webhook if configured
     if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
-      // Typing loop for webhook
-      let typingInterval: NodeJS.Timeout | undefined;
-      if (
-        interaction.channel &&
-        'sendTyping' in interaction.channel &&
-        typeof interaction.channel.sendTyping === 'function'
-      ) {
-        typingInterval = setInterval(() => {
-          (interaction.channel as any).sendTyping().catch(() => {});
-        }, 8000);
-        // Dispara imediatamente também
-        (interaction.channel as any).sendTyping().catch(() => {});
-      }
       try {
-        // Prepare webhook payload with rich context information
-        const webhookPayload: any = {
+        const webhookPayload = {
           command: command.name,
           user: {
             id: interaction.user.id,
@@ -1333,36 +1366,18 @@ class DiscordBot {
             avatarUrl: interaction.user.displayAvatarURL()
           },
           server: {
-            id: interaction.guild!.id,
-            name: interaction.guild!.name,
+            id: interaction.guild?.id || 'unknown',
+            name: interaction.guild?.name || 'DM',
           },
           channel: {
-            id: interaction.channel?.id || '0',
+            id: interaction.channelId,
             name: this.getChannelName(interaction.channel)
           },
-          interaction: {
-            id: interaction.id,
-            timestamp: interaction.createdAt
-          },
-          timestamp: new Date(),
           parameters,
+          timestamp: new Date(),
           botId: this.client.user?.id || 'unknown'
         };
-
-        // Process parameters for webhook
-        if (parameters) {
-          const processedParams: Record<string, any> = {};
-          Object.entries(parameters).forEach(([key, value]) => {
-            if (typeof value === 'object' && value !== null && 'url' in value) {
-              processedParams[key] = value;
-            } else {
-              processedParams[key] = value;
-            }
-          });
-          webhookPayload.processedParameters = processedParams;
-        }
-
-        // Send webhook request
+        
         const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
           headers: {
             'Content-Type': 'application/json',
@@ -1371,53 +1386,22 @@ class DiscordBot {
           timeout: 5000,
           validateStatus: status => status < 500
         });
-        callbackTimestamp = new Date();
+        
         if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
-          callbackStatus = 'Sucesso';
+          // Webhook successful
+          return;
         } else {
-          callbackStatus = 'Erro';
-          callbackError = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}`;
+          // Webhook failed
           if (command.webhookFailureMessage) {
-            if (interaction.deferred) {
-              await interaction.followUp(command.webhookFailureMessage);
-            } else {
-              await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
-            }
+            await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
           }
         }
       } catch (error) {
-        callbackStatus = 'Erro';
-        callbackTimestamp = new Date();
-        callbackError = error instanceof Error ? error.message : 'Unknown webhook error';
-        console.error(`Error calling webhook for command ${command.name}:`, callbackError);
+        console.error('Error calling webhook:', error);
         if (command.webhookFailureMessage) {
-          if (interaction.deferred) {
-            await interaction.followUp(command.webhookFailureMessage + "\n" + callbackError);
-          } else {
-            await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
-          }
+          await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
         }
-      } finally {
-        if (typingInterval) clearInterval(typingInterval);
       }
-    }
-
-    // Sempre cria só UM log, com ou sem callback
-    if (command.logUsage) {
-      await this.createCommandLogEntry(
-        interaction.guild!.id,
-        interaction.guild!.name,
-        interaction.channel?.id || '0',
-        this.getChannelName(interaction.channel),
-        interaction.user.id,
-        interaction.user.tag,
-        command.name,
-        'Sucesso',
-        parameters,
-        callbackStatus,
-        callbackError,
-        callbackTimestamp || (callbackStatus ? new Date() : undefined)
-      );
     }
   }
   
@@ -1590,6 +1574,165 @@ class DiscordBot {
         content: 'There was an error executing this command.', 
         ephemeral: true 
       });
+    }
+  }
+
+  private async handleModalSubmit(interaction: ModalSubmitInteraction) {
+    if (!interaction.guild) return;
+    
+    try {
+      // Find the command that owns this modal
+      const command = Array.from(this.commands.values()).find(cmd => 
+        cmd.type === 'modal' && cmd.modalFields?.customId === interaction.customId
+      );
+      
+      if (!command || !command.active) {
+        return interaction.reply({ 
+          content: 'Este modal não está mais disponível.', 
+          ephemeral: true 
+        });
+      }
+      
+      // Check permissions
+      if (command.requiredPermission !== 'everyone') {
+        let hasPermission = false;
+        
+        if (command.requiredPermission === 'admin' && interaction.memberPermissions?.has('Administrator')) {
+          hasPermission = true;
+        } else if (command.requiredPermission === 'moderator' && 
+                 (interaction.memberPermissions?.has('ManageMessages') || 
+                  interaction.memberPermissions?.has('Administrator'))) {
+          hasPermission = true;
+        } else if (command.requiredPermission === 'server-owner' && 
+                 interaction.guild.ownerId === interaction.user.id) {
+          hasPermission = true;
+        }
+        
+        if (!hasPermission) {
+          return interaction.reply({ 
+            content: 'Você não tem permissão para usar este comando.', 
+            ephemeral: true 
+          });
+        }
+      }
+      
+      // Collect modal field values
+      const parameters: Record<string, any> = {};
+      command.modalFields?.fields.forEach((field: ModalField) => {
+        parameters[field.customId] = interaction.fields.getTextInputValue(field.customId);
+      });
+      
+      // Check if command requires confirmation
+      if ('requireConfirmation' in command && command.requireConfirmation) {
+        // Prepare confirmation message with parameters
+        let confirmationMessage = command.confirmationMessage || 'Are you sure you want to proceed with this action?';
+        
+        // Replace parameter placeholders
+        Object.entries(parameters).forEach(([key, value]) => {
+          confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
+        });
+        
+        // Format parameters for {params} placeholder
+        if (confirmationMessage.includes('{params}')) {
+          const paramsText = Object.entries(parameters)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join('\n');
+          confirmationMessage = confirmationMessage.replace('{params}', paramsText);
+        }
+        
+        // Replace standard placeholders
+        confirmationMessage = confirmationMessage
+          .replace('{user}', interaction.user.username)
+          .replace('{server}', interaction.guild.name);
+        
+        // Create confirmation buttons
+        const row = new ActionRowBuilder<ButtonBuilder>()
+          .addComponents(
+            new ButtonBuilder()
+              .setCustomId('confirm')
+              .setLabel('Sim')
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId('cancel')
+              .setLabel('Não')
+              .setStyle(ButtonStyle.Danger)
+          );
+        
+        // Send confirmation message with buttons
+        const reply = await interaction.reply({
+          content: confirmationMessage,
+          components: [row],
+          ephemeral: true
+        });
+        
+        // Create a collector for button interactions
+        const collector = reply.createMessageComponentCollector({ 
+          componentType: ComponentType.Button,
+          time: 60000 // 1 minute timeout
+        });
+        
+        collector.on('collect', async (buttonInteraction: ButtonInteraction) => {
+          if (buttonInteraction.user.id !== interaction.user.id) {
+            return buttonInteraction.reply({
+              content: 'Apenas o iniciador do comando pode usar estes botões.',
+              ephemeral: true
+            });
+          }
+          
+          // Disable the buttons
+          const disabledRow = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('confirm')
+                .setLabel('Sim')
+                .setStyle(ButtonStyle.Success)
+                .setDisabled(true),
+              new ButtonBuilder()
+                .setCustomId('cancel')
+                .setLabel('Não')
+                .setStyle(ButtonStyle.Danger)
+                .setDisabled(true)
+            );
+          
+          await buttonInteraction.update({ components: [disabledRow] });
+          
+          if (buttonInteraction.customId === 'confirm') {
+            // Process the command
+            await this.processCommand(command, interaction, parameters);
+          } else {
+            // Handle cancellation
+            const cancelMessage = command.cancelMessage || 'Ação cancelada.';
+            await buttonInteraction.followUp({
+              content: cancelMessage,
+              ephemeral: true
+            });
+          }
+        });
+        
+        collector.on('end', async (collected) => {
+          if (collected.size === 0) {
+            // No button was pressed within the time limit
+            await interaction.editReply({
+              content: 'Tempo de confirmação esgotado.',
+              components: []
+            });
+          }
+        });
+      } else {
+        // No confirmation required, process the command directly
+        await this.processCommand(command, interaction, parameters);
+      }
+    } catch (error) {
+      console.error('Error handling modal submit:', error);
+      
+      try {
+        await interaction.reply({ 
+          content: 'Ocorreu um erro ao processar este modal.', 
+          ephemeral: true 
+        });
+      } catch (replyError) {
+        console.error('Error sending error message:', replyError);
+      }
     }
   }
 }

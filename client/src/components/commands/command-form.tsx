@@ -68,7 +68,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   
   // Form state
   const [name, setName] = useState('');
-  const [type, setType] = useState<'text' | 'slash' | 'embed' | 'context-menu'>('text');
+  const [type, setType] = useState<'text' | 'slash' | 'embed' | 'context-menu' | 'modal'>('text');
   const [description, setDescription] = useState('');
   const [response, setResponse] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
@@ -90,6 +90,26 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   // Add state for webhookFailureMessage
   const [webhookFailureMessage, setWebhookFailureMessage] = useState('');
   
+  // Add modal fields
+  const [modalFields, setModalFields] = useState<{
+    customId: string;
+    title: string;
+    fields: Array<{
+      customId: string;
+      label: string;
+      style: 'SHORT' | 'PARAGRAPH';
+      placeholder?: string;
+      required?: boolean;
+      minLength?: number;
+      maxLength?: number;
+      value?: string;
+    }>;
+  }>({
+    customId: '',
+    title: '',
+    fields: []
+  });
+  
   // Adicionar botId do localStorage (ou contexto)
   const botId = localStorage.getItem('botId') || '';
   
@@ -97,7 +117,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   useEffect(() => {
     if (command) {
       setName(command.name || '');
-      setType(command.type as 'text' | 'slash' | 'embed' | 'context-menu');
+      setType(command.type as 'text' | 'slash' | 'embed' | 'context-menu' | 'modal');
       setDescription(command.description || '');
       setResponse(command.response || '');
       setWebhookUrl(command.webhookUrl || '');
@@ -130,6 +150,11 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       // Initialize webhookFailureMessage if editing
       if ('webhookFailureMessage' in command && command.webhookFailureMessage) {
         setWebhookFailureMessage(command.webhookFailureMessage);
+      }
+      
+      // Initialize modal fields if available
+      if ('modalFields' in command && command.modalFields) {
+        setModalFields(command.modalFields);
       }
     }
   }, [command]);
@@ -248,6 +273,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       cancelMessage: requireConfirmation ? cancelMessage : null,
       contextMenuType: type === 'context-menu' ? contextMenuType : undefined,
       webhookFailureMessage: webhookFailureMessage || null,
+      modalFields: type === 'modal' ? modalFields : undefined,
     };
     
     if (isEditing && command && 'id' in command) {
@@ -296,6 +322,38 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
     setOptions(newOptions);
   };
 
+  // Add modal field functions
+  const addModalField = () => {
+    setModalFields(prev => ({
+      ...prev,
+      fields: [
+        ...prev.fields,
+        {
+          customId: '',
+          label: '',
+          style: 'SHORT',
+          required: false
+        }
+      ]
+    }));
+  };
+
+  const removeModalField = (index: number) => {
+    setModalFields(prev => ({
+      ...prev,
+      fields: prev.fields.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateModalField = (index: number, field: string, value: any) => {
+    setModalFields(prev => ({
+      ...prev,
+      fields: prev.fields.map((f, i) => 
+        i === index ? { ...f, [field]: value } : f
+      )
+    }));
+  };
+
   // Inside the CommandForm component, add the sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -325,23 +383,23 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
             <Label className="block text-discord-text-secondary text-sm mb-1">Nome do Comando</Label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 bg-discord-bg-tertiary border border-r-0 border-gray-700 rounded-l text-discord-text-secondary">
-                {type === 'slash' ? '/' : '!'}
-              </span>
-              <Input
-                type="text"
-                placeholder="command"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="flex-1 px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded-r"
-              />
-            </div>
+            <Input
+              type="text"
+              placeholder="nome-do-comando"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
+            />
+            <p className="text-xs text-discord-text-secondary mt-1">
+              {type === 'text' ? 'Use ! antes do nome para executar o comando (ex: !nome-do-comando)' : 
+               type === 'modal' ? 'Use / antes do nome para executar o comando (ex: /nome-do-comando)' :
+               'Use / antes do nome para executar o comando (ex: /nome-do-comando)'}
+            </p>
           </div>
           
           <div>
             <Label className="block text-discord-text-secondary text-sm mb-1">Tipo de Comando</Label>
-            <Select value={type} onValueChange={(value: 'text' | 'slash' | 'embed' | 'context-menu') => setType(value)}>
+            <Select value={type} onValueChange={(value: 'text' | 'slash' | 'embed' | 'context-menu' | 'modal') => setType(value)}>
               <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
                 <SelectValue placeholder="Select command type" />
               </SelectTrigger>
@@ -350,6 +408,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                 <SelectItem value="slash">Comando de Slash</SelectItem>
                 <SelectItem value="embed">Mensagem de Embed</SelectItem>
                 <SelectItem value="context-menu">Comando de Menu de Contexto</SelectItem>
+                <SelectItem value="modal">Modal</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -586,6 +645,152 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                 </Button>
               </div>
             )}
+          </div>
+        )}
+        
+        {type === 'modal' && (
+          <div className="mb-6 border border-gray-700 rounded-md p-4 bg-discord-bg-secondary">
+            <div className="flex justify-between items-center mb-3">
+              <Label className="text-discord-text-secondary text-sm font-medium">
+                Configuração do Modal
+              </Label>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label className="block text-discord-text-secondary text-xs mb-1">ID do Modal</Label>
+                <Input
+                  value={modalFields.customId}
+                  onChange={(e) => setModalFields(prev => ({ ...prev, customId: e.target.value }))}
+                  placeholder="modal_id"
+                  className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                />
+                <p className="text-xs text-discord-text-secondary mt-1">
+                  ID único para identificar este modal. Use apenas letras minúsculas, números e underscores.
+                </p>
+              </div>
+              
+              <div>
+                <Label className="block text-discord-text-secondary text-xs mb-1">Título do Modal</Label>
+                <Input
+                  value={modalFields.title}
+                  onChange={(e) => setModalFields(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Título do Modal"
+                  className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <Label className="text-discord-text-secondary text-sm">Campos do Modal</Label>
+                  <Button
+                    type="button"
+                    onClick={addModalField}
+                    className="text-xs py-1 px-2 bg-discord-bg-tertiary text-discord-text hover:bg-opacity-80"
+                  >
+                    + Adicionar Campo
+                  </Button>
+                </div>
+                
+                {modalFields.fields.map((field, index) => (
+                  <div key={index} className="border border-gray-700 rounded p-3 space-y-3">
+                    <div className="flex justify-between">
+                      <h4 className="text-sm font-medium text-discord-text">Campo #{index + 1}</h4>
+                      <Button
+                        type="button"
+                        onClick={() => removeModalField(index)}
+                        className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="block text-discord-text-secondary text-xs mb-1">ID do Campo</Label>
+                        <Input
+                          value={field.customId}
+                          onChange={(e) => updateModalField(index, 'customId', e.target.value)}
+                          placeholder="field_id"
+                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="block text-discord-text-secondary text-xs mb-1">Estilo</Label>
+                        <Select
+                          value={field.style}
+                          onValueChange={(value: 'SHORT' | 'PARAGRAPH') => updateModalField(index, 'style', value)}
+                        >
+                          <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
+                            <SelectValue placeholder="Selecione o estilo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SHORT">Campo Curto</SelectItem>
+                            <SelectItem value="PARAGRAPH">Campo Longo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label className="block text-discord-text-secondary text-xs mb-1">Rótulo</Label>
+                      <Input
+                        value={field.label}
+                        onChange={(e) => updateModalField(index, 'label', e.target.value)}
+                        placeholder="Rótulo do campo"
+                        className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="block text-discord-text-secondary text-xs mb-1">Placeholder</Label>
+                      <Input
+                        value={field.placeholder || ''}
+                        onChange={(e) => updateModalField(index, 'placeholder', e.target.value)}
+                        placeholder="Texto de exemplo"
+                        className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="block text-discord-text-secondary text-xs mb-1">Tamanho Mínimo</Label>
+                        <Input
+                          type="number"
+                          value={field.minLength || ''}
+                          onChange={(e) => updateModalField(index, 'minLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                          placeholder="0"
+                          min="0"
+                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="block text-discord-text-secondary text-xs mb-1">Tamanho Máximo</Label>
+                        <Input
+                          type="number"
+                          value={field.maxLength || ''}
+                          onChange={(e) => updateModalField(index, 'maxLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                          placeholder="4000"
+                          min="1"
+                          max="4000"
+                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <ToggleSwitch
+                        checked={field.required || false}
+                        onChange={(checked) => updateModalField(index, 'required', checked)}
+                        label="Campo obrigatório"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
         

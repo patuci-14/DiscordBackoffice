@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -84,7 +84,7 @@ export const commands = pgTable("commands", {
   id: serial("id").primaryKey(),
   botId: text("bot_id").notNull(),
   name: text("name").notNull(),
-  type: text("type").notNull().default("text"), // text, slash, embed, context-menu
+  type: text("type").notNull().$type<CommandType>(),
   description: text("description"), // Used for slash command descriptions
   response: text("response").notNull(),
   webhookUrl: text("webhook_url"), // URL to be called when command is triggered
@@ -101,6 +101,20 @@ export const commands = pgTable("commands", {
   cancelMessage: text("cancel_message"),
   contextMenuType: text("context_menu_type"), // message or user
   webhookFailureMessage: text("webhook_failure_message"), // New field for custom webhook failure message
+  modalFields: jsonb("modal_fields").$type<{
+    customId: string;
+    title: string;
+    fields: Array<{
+      customId: string;
+      label: string;
+      style: 'SHORT' | 'PARAGRAPH';
+      placeholder?: string;
+      required?: boolean;
+      minLength?: number;
+      maxLength?: number;
+      value?: string;
+    }>;
+  } | null>(),
 });
 
 export const insertCommandSchema = createInsertSchema(commands).pick({
@@ -122,6 +136,7 @@ export const insertCommandSchema = createInsertSchema(commands).pick({
   cancelMessage: true,
   contextMenuType: true,
   webhookFailureMessage: true,
+  modalFields: true,
 });
 
 // Command Logs
@@ -285,3 +300,5 @@ export type RecentActivity = {
   time: string;
   details?: string;
 };
+
+export type CommandType = 'text' | 'slash' | 'embed' | 'context-menu' | 'modal';

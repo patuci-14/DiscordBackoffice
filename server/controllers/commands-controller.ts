@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 const commandValidator = z.object({
   name: z.string().min(1).max(32).transform(val => val.toLowerCase()),
-  type: z.enum(['text', 'slash', 'embed', 'context-menu']),
+  type: z.enum(['text', 'slash', 'embed', 'context-menu', 'modal']),
   response: z.string().optional(),
   description: z.string().nullable().optional(),
   webhookUrl: z.string().nullable().optional().or(z.literal('')),
@@ -36,6 +36,20 @@ const commandValidator = z.object({
     }).optional()
   })).optional(),
   webhookFailureMessage: z.string().nullable().optional(),
+  modalFields: z.object({
+    customId: z.string().min(1).max(100),
+    title: z.string().min(1).max(100),
+    fields: z.array(z.object({
+      customId: z.string().min(1).max(100),
+      label: z.string().min(1).max(100),
+      style: z.enum(['SHORT', 'PARAGRAPH']),
+      placeholder: z.string().optional(),
+      required: z.boolean().optional(),
+      minLength: z.number().int().min(0).max(4000).optional(),
+      maxLength: z.number().int().min(1).max(4000).optional(),
+      value: z.string().optional()
+    })).min(1).max(5)
+  }).optional().nullable()
 });
 
 export const getCommands = async (req: Request, res: Response) => {
