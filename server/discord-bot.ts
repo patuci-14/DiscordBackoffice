@@ -1355,6 +1355,10 @@ class DiscordBot {
     }
     
     // Handle webhook if configured
+    let webhookStatus: 'Sucesso' | 'Erro' | undefined = undefined;
+    let webhookError: string | undefined = undefined;
+    let webhookTimestamp: Date | undefined = undefined;
+
     if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
       try {
         const webhookPayload = {
@@ -1387,21 +1391,48 @@ class DiscordBot {
           validateStatus: status => status < 500
         });
         
-        if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
-          // Webhook successful
-          return;
-        } else {
-          // Webhook failed
+        webhookTimestamp = new Date();
+        webhookStatus = webhookResponse.status >= 200 && webhookResponse.status < 300 ? 'Sucesso' : 'Erro';
+        
+        if (webhookStatus === 'Erro') {
+          webhookError = `HTTP ${webhookResponse.status}`;
           if (command.webhookFailureMessage) {
             await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
           }
         }
       } catch (error) {
+        webhookStatus = 'Erro';
+        webhookTimestamp = new Date();
+        webhookError = error instanceof Error ? error.message : 'Unknown webhook error';
         console.error('Error calling webhook:', error);
         if (command.webhookFailureMessage) {
           await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
         }
       }
+    }
+
+    // Log the command usage if enabled and not a modal command
+    if (command.logUsage && interaction.guild && command.type !== 'modal') {
+      const serverName = interaction.guild.name || 'Unknown Server';
+      const channelName = this.getChannelName(interaction.channel) || 'Unknown Channel';
+      const username = interaction.user.username || 'Unknown User';
+      const channelId = interaction.channelId || 'unknown';
+      const userId = interaction.user.id || 'unknown';
+      
+      await this.createCommandLogEntry(
+        interaction.guild.id,
+        serverName,
+        channelId,
+        channelName,
+        userId,
+        username,
+        command.name,
+        'Sucesso',
+        parameters,
+        webhookStatus,
+        webhookError,
+        webhookTimestamp
+      );
     }
   }
   
@@ -1592,6 +1623,93 @@ class DiscordBot {
           ephemeral: true 
         });
       }
+
+      // Collect modal field values
+      const parameters: Record<string, any> = {};
+      command.modalFields?.fields.forEach((field: ModalField) => {
+        parameters[field.customId] = interaction.fields.getTextInputValue(field.customId);
+      });
+
+      // Handle webhook if configured
+      let webhookStatus: 'Sucesso' | 'Erro' | undefined = undefined;
+      let webhookError: string | undefined = undefined;
+      let webhookTimestamp: Date | undefined = undefined;
+
+      if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
+        try {
+          const webhookPayload = {
+            command: command.name,
+            user: {
+              id: interaction.user.id,
+              username: interaction.user.username,
+              discriminator: interaction.user.discriminator,
+              avatarUrl: interaction.user.displayAvatarURL()
+            },
+            server: {
+              id: interaction.guild.id,
+              name: interaction.guild.name,
+            },
+            channel: {
+              id: interaction.channelId,
+              name: this.getChannelName(interaction.channel)
+            },
+            parameters,
+            timestamp: new Date(),
+            botId: this.client.user?.id || 'unknown'
+          };
+          
+          const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Discord-Bot-Manager'
+            },
+            timeout: 5000,
+            validateStatus: status => status < 500
+          });
+          
+          webhookTimestamp = new Date();
+          webhookStatus = webhookResponse.status >= 200 && webhookResponse.status < 300 ? 'Sucesso' : 'Erro';
+          
+          if (webhookStatus === 'Erro') {
+            webhookError = `HTTP ${webhookResponse.status}`;
+            if (command.webhookFailureMessage) {
+              await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
+            }
+          }
+        } catch (error) {
+          webhookStatus = 'Erro';
+          webhookTimestamp = new Date();
+          webhookError = error instanceof Error ? error.message : 'Unknown webhook error';
+          console.error('Error calling webhook:', error);
+          if (command.webhookFailureMessage) {
+            await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
+          }
+        }
+      }
+
+      // Log the command usage if enabled
+      if (command.logUsage) {
+        const serverName = interaction.guild.name || 'Unknown Server';
+        const channelName = this.getChannelName(interaction.channel) || 'Unknown Channel';
+        const username = interaction.user.username || 'Unknown User';
+        const channelId = interaction.channelId || 'unknown';
+        const userId = interaction.user.id || 'unknown';
+        
+        await this.createCommandLogEntry(
+          interaction.guild.id,
+          serverName,
+          channelId,
+          channelName,
+          userId,
+          username,
+          command.name,
+          'Sucesso',
+          parameters,
+          webhookStatus,
+          webhookError,
+          webhookTimestamp
+        );
+      }
       
       // Check permissions
       if (command.requiredPermission !== 'everyone') {
@@ -1615,12 +1733,6 @@ class DiscordBot {
           });
         }
       }
-      
-      // Collect modal field values
-      const parameters: Record<string, any> = {};
-      command.modalFields?.fields.forEach((field: ModalField) => {
-        parameters[field.customId] = interaction.fields.getTextInputValue(field.customId);
-      });
       
       // Check if command requires confirmation
       if ('requireConfirmation' in command && command.requireConfirmation) {

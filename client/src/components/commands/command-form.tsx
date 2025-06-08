@@ -154,7 +154,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
       
       // Initialize modal fields if available
       if ('modalFields' in command && command.modalFields) {
-        setModalFields(command.modalFields);
+        setModalFields(command.modalFields as any);
       }
     }
   }, [command]);
