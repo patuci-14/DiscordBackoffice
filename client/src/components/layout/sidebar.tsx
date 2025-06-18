@@ -31,7 +31,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ botName = 'Discord Bot' })
     
     return (
       <motion.li
-        whileHover={{ x: 5 }}
+        whileHover={{ x: 3 }}
         key={to}
         layout
       >
@@ -43,16 +43,16 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ botName = 'Discord Bot' })
                 : 'text-discord-text-secondary hover:bg-discord-bg-primary hover:text-white'
             }`}
             whileHover={{ 
-              backgroundColor: isActive ? undefined : 'rgba(79, 84, 92, 0.3)'
+              backgroundColor: isActive ? undefined : 'rgba(79, 84, 92, 0.2)'
             }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ duration: 0.2 }}
+            whileTap={{ scale: 0.99 }}
+            transition={{ duration: 0.15 }}
             layout
           >
             <motion.i 
               className={`${icon} w-5 mr-3`}
-              whileHover={{ rotate: isActive ? 0 : 10 }}
-              transition={{ duration: 0.3 }}
+              whileHover={{ rotate: isActive ? 0 : 5 }}
+              transition={{ duration: 0.2 }}
               layout
             />
             {label}
@@ -60,7 +60,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ botName = 'Discord Bot' })
               <motion.div
                 className="ml-auto h-2 w-2 rounded-full bg-discord-blurple"
                 layoutId="activeIndicator"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                transition={{ type: "spring", stiffness: 200, damping: 25 }}
               />
             )}
           </motion.div>
@@ -76,18 +76,18 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ botName = 'Discord Bot' })
     <motion.aside 
       className="w-64 bg-discord-bg-secondary flex-shrink-0 h-screen flex flex-col overflow-hidden"
       layoutId={sidebarId}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
     >
       <motion.div 
         className="flex items-center p-4 border-b border-gray-700"
-        whileHover={{ backgroundColor: "rgba(79, 84, 92, 0.2)" }}
-        transition={{ duration: 0.2 }}
+        whileHover={{ backgroundColor: "rgba(79, 84, 92, 0.1)" }}
+        transition={{ duration: 0.15 }}
         layout
       >
         <motion.i 
           className="fab fa-discord text-discord-blurple text-2xl mr-3"
-          whileHover={{ rotate: [0, -10, 10, -10, 0] }}
-          transition={{ duration: 0.5 }}
+          whileHover={{ rotate: [0, -5, 5, -5, 0] }}
+          transition={{ duration: 0.4 }}
           layout
         />
         <motion.h1 

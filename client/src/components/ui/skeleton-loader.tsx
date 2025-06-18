@@ -40,9 +40,9 @@ const Skeleton: React.FC<SkeletonProps> = ({
   
   // Animação de brilho
   const shimmer = {
-    initial: { backgroundPosition: '-500px 0' },
-    animate: { backgroundPosition: '500px 0' },
-    transition: { repeat: Infinity, duration: 1.5, ease: 'linear' },
+    initial: { backgroundPosition: '-300px 0' },
+    animate: { backgroundPosition: '300px 0' },
+    transition: { repeat: Infinity, duration: 2, ease: 'linear' },
   };
 
   return (

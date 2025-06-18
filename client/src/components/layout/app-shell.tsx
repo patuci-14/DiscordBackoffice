@@ -61,15 +61,18 @@ const AppShell: React.FC<AppShellProps> = React.memo(({ children, title, actions
       <motion.main 
         className="flex-1 bg-discord-bg-primary overflow-auto w-full md:ml-64 pt-16 md:pt-0"
         layoutId={layoutId}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
       >
         <div className="p-4 md:p-6">
           <motion.div 
             className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6"
             layout
+            transition={{ duration: 0.15, ease: 'easeOut' }}
           >
             <motion.h1 
               className="text-2xl font-bold mb-3 md:mb-0"
               layout
+              transition={{ duration: 0.15, ease: 'easeOut' }}
             >
               {title}
             </motion.h1>
@@ -77,6 +80,7 @@ const AppShell: React.FC<AppShellProps> = React.memo(({ children, title, actions
               <motion.div 
                 className="w-full md:w-auto"
                 layout
+                transition={{ duration: 0.15, ease: 'easeOut' }}
               >
                 {actions}
               </motion.div>

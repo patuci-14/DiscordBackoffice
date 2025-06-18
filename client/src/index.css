@@ -39,6 +39,14 @@
   --discord-bg-tertiary: 210 6% 14%;
   --discord-text-primary: 0 0% 100%;
   --discord-text-secondary: 210 2% 74%;
+  
+  /* Scrollbar colors */
+  --scrollbar-thin-thumb: hsla(210, 3%, 35%, 0.7);
+  --scrollbar-thin-track: transparent;
+  --scrollbar-auto-thumb: hsla(210, 3%, 35%, 0.7);
+  --scrollbar-auto-track: hsla(210, 3%, 15%, 0.3);
+  --scrollbar-auto-scrollbar-color-thumb: hsla(210, 3%, 35%, 0.7);
+  --scrollbar-auto-scrollbar-color-track: hsla(210, 3%, 15%, 0.3);
 }
 
 @layer base {
@@ -48,6 +56,50 @@
 
   body {
     @apply font-sans antialiased bg-[#202225] text-white;
+  }
+  
+  /* Remove focus outline */
+  :focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    ring: none !important;
+  }
+  
+  /* Remove focus ring from all elements */
+  *:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Custom Discord-like scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background-color: var(--scrollbar-auto-track);
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-auto-thumb);
+    border-radius: 10px;
+    min-height: 40px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: hsla(210, 3%, 45%, 0.7);
+  }
+  
+  ::-webkit-scrollbar-corner {
+    background-color: transparent;
+  }
+  
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-auto-scrollbar-color-thumb) var(--scrollbar-auto-scrollbar-color-track);
   }
 }
 
@@ -137,5 +189,32 @@
   .no-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Discord-style scrollbar */
+  .discord-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .discord-scrollbar::-webkit-scrollbar-track {
+    background-color: var(--scrollbar-auto-track);
+    border-radius: 10px;
+    margin: 4px 0;
+  }
+  
+  .discord-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-auto-thumb);
+    border-radius: 10px;
+    min-height: 40px;
+  }
+  
+  .discord-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsla(210, 3%, 45%, 0.7);
+  }
+  
+  .discord-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-auto-scrollbar-color-thumb) var(--scrollbar-auto-scrollbar-color-track);
   }
 }

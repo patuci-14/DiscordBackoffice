@@ -379,462 +379,465 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   };
 
   return (
-    <div>
-      <h3 className="font-bold mb-4">{isEditing ? 'Editar Comando' : 'Criar Novo Comando'}</h3>
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Nome do Comando</Label>
+    <div className="command-form">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Command Information */}
+        <div className="mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <Label className="block text-discord-text-secondary text-sm mb-1">Nome do Comando</Label>
+              <Input
+                type="text"
+                placeholder="nome-do-comando"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
+              />
+              <p className="text-xs text-discord-text-secondary mt-1">
+                {type === 'text' ? 'Use ! antes do nome para executar o comando (ex: !nome-do-comando)' : 
+                 type === 'modal' ? 'Use / antes do nome para executar o comando (ex: /nome-do-comando)' :
+                 'Use / antes do nome para executar o comando (ex: /nome-do-comando)'}
+              </p>
+            </div>
+            
+            <div>
+              <Label className="block text-discord-text-secondary text-sm mb-1">Tipo de Comando</Label>
+              <Select value={type} onValueChange={(value: 'text' | 'slash' | 'embed' | 'context-menu' | 'modal') => setType(value)}>
+                <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
+                  <SelectValue placeholder="Select command type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Comando de Texto</SelectItem>
+                  <SelectItem value="slash">Comando de Slash</SelectItem>
+                  <SelectItem value="embed">Mensagem de Embed</SelectItem>
+                  <SelectItem value="context-menu">Comando de Menu de Contexto</SelectItem>
+                  <SelectItem value="modal">Modal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="mb-6">
+            <Label className="block text-discord-text-secondary text-sm mb-1">Descrição {type === 'slash' && <span className="text-discord-blurple">*</span>}</Label>
             <Input
               type="text"
-              placeholder="nome-do-comando"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              placeholder="Descrição breve do que o comando faz..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
             />
             <p className="text-xs text-discord-text-secondary mt-1">
-              {type === 'text' ? 'Use ! antes do nome para executar o comando (ex: !nome-do-comando)' : 
-               type === 'modal' ? 'Use / antes do nome para executar o comando (ex: /nome-do-comando)' :
-               'Use / antes do nome para executar o comando (ex: /nome-do-comando)'}
+              {type === 'slash' ? 'Obrigatório para comandos de slash. Isso será mostrado no Discord quando os usuários digitarem "/" e verem os comandos disponíveis.' : 'Descrição opcional para fins de documentação.'}
             </p>
           </div>
           
-          <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Tipo de Comando</Label>
-            <Select value={type} onValueChange={(value: 'text' | 'slash' | 'embed' | 'context-menu' | 'modal') => setType(value)}>
-              <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                <SelectValue placeholder="Select command type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="text">Comando de Texto</SelectItem>
-                <SelectItem value="slash">Comando de Slash</SelectItem>
-                <SelectItem value="embed">Mensagem de Embed</SelectItem>
-                <SelectItem value="context-menu">Comando de Menu de Contexto</SelectItem>
-                <SelectItem value="modal">Modal</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-1">Descrição {type === 'slash' && <span className="text-discord-blurple">*</span>}</Label>
-          <Input
-            type="text"
-            placeholder="Descrição breve do que o comando faz..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
-          />
-          <p className="text-xs text-discord-text-secondary mt-1">
-            {type === 'slash' ? 'Obrigatório para comandos de slash. Isso será mostrado no Discord quando os usuários digitarem "/" e verem os comandos disponíveis.' : 'Descrição opcional para fins de documentação.'}
-          </p>
-        </div>
-        
-        {type === 'context-menu' && (
+          {type === 'context-menu' && (
+            <div className="mb-6">
+              <Label className="block text-discord-text-secondary text-sm mb-1">Tipo de Menu de Contexto</Label>
+              <Select value={contextMenuType} onValueChange={(value: 'message' | 'user') => setContextMenuType(value)}>
+                <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
+                  <SelectValue placeholder="Selecione o tipo de menu de contexto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="message">Menu de Contexto de Mensagem</SelectItem>
+                  <SelectItem value="user">Menu de Contexto de Usuário</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-discord-text-secondary mt-1">
+                O menu de contexto de mensagem aparece quando você clica com o botão direito em uma mensagem.
+                O menu de contexto de usuário aparece quando você clica com o botão direito em um usuário.
+              </p>
+            </div>
+          )}
+          
           <div className="mb-6">
-            <Label className="block text-discord-text-secondary text-sm mb-1">Tipo de Menu de Contexto</Label>
-            <Select value={contextMenuType} onValueChange={(value: 'message' | 'user') => setContextMenuType(value)}>
-              <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                <SelectValue placeholder="Selecione o tipo de menu de contexto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="message">Menu de Contexto de Mensagem</SelectItem>
-                <SelectItem value="user">Menu de Contexto de Usuário</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-discord-text-secondary mt-1">
-              O menu de contexto de mensagem aparece quando você clica com o botão direito em uma mensagem.
-              O menu de contexto de usuário aparece quando você clica com o botão direito em um usuário.
-            </p>
-          </div>
-        )}
-        
-        <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-1">Resposta</Label>
-          <Textarea
-            rows={4}
-            placeholder="Digite a mensagem de resposta para este comando..."
-            value={response}
-            onChange={(e) => setResponse(e.target.value)}
-            className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
-          />
-          <p className="text-xs text-discord-text-secondary mt-1">
-            Você pode usar {'{user}'} para o nome do usuário, {'{server}'} para o nome do servidor.
-            {type === 'context-menu' && (
-              <>
-                <br />
-                Para comandos de menu de contexto, você também pode usar {'{target}'} para o nome do usuário ou mensagem alvo.
-              </>
-            )}
-          </p>
-        </div>
-        
-        <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-1">URL do Webhook (Opcional)</Label>
-          <Input
-            type="text"
-            placeholder="https://seu-webhook-url.com/caminho"
-            value={webhookUrl}
-            onChange={(e) => setWebhookUrl(e.target.value)}
-            className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
-          />
-          <p className="text-xs text-discord-text-secondary mt-1">Quando este comando é usado, uma solicitação de webhook será enviada para esta URL.</p>
-        </div>
-        
-        <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-1">Mensagem de falha do Webhook (Opcional)</Label>
-          <Textarea
-            rows={2}
-            placeholder="Mensagem a ser exibida ao usuário caso a chamada do webhook falhe."
-            value={webhookFailureMessage}
-            onChange={(e) => setWebhookFailureMessage(e.target.value)}
-            className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
-          />
-          <p className="text-xs text-discord-text-secondary mt-1">Se preenchido, esta mensagem será enviada ao usuário caso o webhook retorne erro ou esteja fora do ar.</p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Permissão Requerida</Label>
-            <Select value={requiredPermission} onValueChange={(value: 'everyone' | 'moderator' | 'admin' | 'server-owner') => setRequiredPermission(value)}>
-              <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
-                <SelectValue placeholder="Selecione a permissão requerida" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="everyone">Todos</SelectItem>
-                <SelectItem value="moderator">Moderador</SelectItem>
-                <SelectItem value="admin">Administrador</SelectItem>
-                <SelectItem value="server-owner">Proprietário do Servidor</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div>
-            <Label className="block text-discord-text-secondary text-sm mb-1">Cooldown (segundos)</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              min="0"
-              value={cooldown}
-              onChange={(e) => setCooldown(parseInt(e.target.value) || 0)}
+            <Label className="block text-discord-text-secondary text-sm mb-1">Resposta</Label>
+            <Textarea
+              rows={4}
+              placeholder="Digite a mensagem de resposta para este comando..."
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
               className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
             />
+            <p className="text-xs text-discord-text-secondary mt-1">
+              Você pode usar {'{user}'} para o nome do usuário, {'{server}'} para o nome do servidor.
+              {type === 'context-menu' && (
+                <>
+                  <br />
+                  Para comandos de menu de contexto, você também pode usar {'{target}'} para o nome do usuário ou mensagem alvo.
+                </>
+              )}
+            </p>
           </div>
-        </div>
-        
-        <div className="mb-6">
-          <Label className="block text-discord-text-secondary text-sm mb-3">Opções do Comando</Label>
           
-          <div className="space-y-3">
-            <ToggleSwitch
-              checked={enabledForAllServers}
-              onChange={setEnabledForAllServers}
-              label="Ativar para todos os servidores"
+          <div className="mb-6">
+            <Label className="block text-discord-text-secondary text-sm mb-1">URL do Webhook (Opcional)</Label>
+            <Input
+              type="text"
+              placeholder="https://seu-webhook-url.com/caminho"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
             />
-            
-            <ToggleSwitch
-              checked={deleteUserMessage}
-              onChange={setDeleteUserMessage}
-              label="Excluir mensagem do usuário após o comando"
+            <p className="text-xs text-discord-text-secondary mt-1">Quando este comando é usado, uma solicitação de webhook será enviada para esta URL.</p>
+          </div>
+          
+          <div className="mb-6">
+            <Label className="block text-discord-text-secondary text-sm mb-1">Mensagem de falha do Webhook (Opcional)</Label>
+            <Textarea
+              rows={2}
+              placeholder="Mensagem a ser exibida ao usuário caso a chamada do webhook falhe."
+              value={webhookFailureMessage}
+              onChange={(e) => setWebhookFailureMessage(e.target.value)}
+              className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
             />
+            <p className="text-xs text-discord-text-secondary mt-1">Se preenchido, esta mensagem será enviada ao usuário caso o webhook retorne erro ou esteja fora do ar.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <Label className="block text-discord-text-secondary text-sm mb-1">Permissão Requerida</Label>
+              <Select value={requiredPermission} onValueChange={(value: 'everyone' | 'moderator' | 'admin' | 'server-owner') => setRequiredPermission(value)}>
+                <SelectTrigger className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded">
+                  <SelectValue placeholder="Selecione a permissão requerida" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="everyone">Todos</SelectItem>
+                  <SelectItem value="moderator">Moderador</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="server-owner">Proprietário do Servidor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             
-            <ToggleSwitch
-              checked={logUsage}
-              onChange={setLogUsage}
-              label="Registrar logs quando o comando é usado"
-            />
+            <div>
+              <Label className="block text-discord-text-secondary text-sm mb-1">Cooldown (segundos)</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                min="0"
+                value={cooldown}
+                onChange={(e) => setCooldown(parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 bg-discord-bg-tertiary border border-gray-700 rounded"
+              />
+            </div>
+          </div>
+          
+          <div className="mb-6">
+            <Label className="block text-discord-text-secondary text-sm mb-3">Opções do Comando</Label>
             
-            <ToggleSwitch
-              checked={active}
-              onChange={setActive}
-              label="Comando ativo"
-            />
-            
-            {/* Add confirmation toggle and settings */}
-            <div className="pt-2 border-t border-gray-700">
+            <div className="space-y-3">
               <ToggleSwitch
-                checked={requireConfirmation}
-                onChange={(checked) => {
-                  setRequireConfirmation(checked);
-                }}
-                label="Requer confirmação antes de executar o comando"
+                checked={enabledForAllServers}
+                onChange={setEnabledForAllServers}
+                label="Ativar para todos os servidores"
               />
               
-              {requireConfirmation && (
-                <div className="mt-3 ml-6 space-y-3">
-                  <div>
-                    <Label className="block text-discord-text-secondary text-xs mb-1">Mensagem de Confirmação</Label>
-                    <Textarea
-                      value={confirmationMessage}
-                      onChange={(e) => setConfirmationMessage(e.target.value)}
-                      placeholder="Tem certeza que deseja prosseguir com esta ação?"
-                      className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                      rows={3}
-                    />
-                    <p className="text-xs text-discord-text-secondary mt-1">
-                      Você pode usar {'{user}'} para o nome do usuário, {'{server}'} para o nome do servidor e {'{params}'} para incluir todos os parâmetros do comando.
-                      <br />
-                      Para parâmetros específicos, use {'{param:name}'} onde "name" é o nome do parâmetro.
-                      <br />
-                      Para anexos de arquivo, você pode usar {'{param:file.name}'}, {'{param:file.extension}'}, {'{param:file.url}'} e {'{param:file.size}'}.
-                    </p>
+              <ToggleSwitch
+                checked={deleteUserMessage}
+                onChange={setDeleteUserMessage}
+                label="Excluir mensagem do usuário após o comando"
+              />
+              
+              <ToggleSwitch
+                checked={logUsage}
+                onChange={setLogUsage}
+                label="Registrar logs quando o comando é usado"
+              />
+              
+              <ToggleSwitch
+                checked={active}
+                onChange={setActive}
+                label="Comando ativo"
+              />
+              
+              {/* Add confirmation toggle and settings */}
+              <div className="pt-2 border-t border-gray-700">
+                <ToggleSwitch
+                  checked={requireConfirmation}
+                  onChange={(checked) => {
+                    setRequireConfirmation(checked);
+                  }}
+                  label="Requer confirmação antes de executar o comando"
+                />
+                
+                {requireConfirmation && (
+                  <div className="mt-3 ml-6 space-y-3">
+                    <div>
+                      <Label className="block text-discord-text-secondary text-xs mb-1">Mensagem de Confirmação</Label>
+                      <Textarea
+                        value={confirmationMessage}
+                        onChange={(e) => setConfirmationMessage(e.target.value)}
+                        placeholder="Tem certeza que deseja prosseguir com esta ação?"
+                        className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                        rows={3}
+                      />
+                      <p className="text-xs text-discord-text-secondary mt-1">
+                        Você pode usar {'{user}'} para o nome do usuário, {'{server}'} para o nome do servidor e {'{params}'} para incluir todos os parâmetros do comando.
+                        <br />
+                        Para parâmetros específicos, use {'{param:name}'} onde "name" é o nome do parâmetro.
+                        <br />
+                        Para anexos de arquivo, você pode usar {'{param:file.name}'}, {'{param:file.extension}'}, {'{param:file.url}'} e {'{param:file.size}'}.
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="block text-discord-text-secondary text-xs mb-1">Mensagem de Cancelamento</Label>
+                      <Input
+                        value={cancelMessage}
+                        onChange={(e) => setCancelMessage(e.target.value)}
+                        placeholder="Ação cancelada."
+                        className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label className="block text-discord-text-secondary text-xs mb-1">Mensagem de Cancelamento</Label>
-                    <Input
-                      value={cancelMessage}
-                      onChange={(e) => setCancelMessage(e.target.value)}
-                      placeholder="Ação cancelada."
-                      className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                    />
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        
-        {type === 'slash' && (
-          <div className="mb-6 border border-gray-700 rounded-md p-4 bg-discord-bg-secondary">
-            <div className="flex justify-between items-center mb-3">
-              <Label className="text-discord-text-secondary text-sm font-medium">
-                Parâmetros do Comando em Barra (Slash)
-              </Label>
-              
-              <Button
-                type="button"
-                onClick={() => setShowOptionsPanel(!showOptionsPanel)}
-                className="text-xs py-1 px-2 bg-discord-bg-tertiary text-discord-text hover:bg-opacity-80"
-              >
-                {showOptionsPanel ? 'Ocultar Opções' : 'Mostrar Opções'}
-              </Button>
-            </div>
-            
-            {showOptionsPanel && (
-              <div className="space-y-4">
-                <p className="text-xs text-discord-text-secondary">
-                  Define parâmetros que os usuários fornecerão ao usar este comando em barra (slash). 
-                  Eles aparecerão como opções no Discord quando os usuários digitarem o comando.
-                </p>
-                
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={options.map((_, index) => index)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {options.map((option, index) => (
-                      <SortableParameter
-                        key={index}
-                        option={option}
-                        index={index}
-                        updateOption={updateOption}
-                        removeOption={removeOption}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
+          
+          {type === 'slash' && (
+            <div className="mb-6 border border-gray-700 rounded-md p-4 bg-discord-bg-secondary">
+              <div className="flex justify-between items-center mb-3">
+                <Label className="text-discord-text-secondary text-sm font-medium">
+                  Parâmetros do Comando em Barra (Slash)
+                </Label>
                 
                 <Button
                   type="button"
-                  onClick={addOption}
-                  className="w-full py-2 mt-2 border border-dashed border-discord-blurple bg-discord-bg-secondary text-discord-blurple hover:bg-discord-blurple hover:bg-opacity-10"
+                  onClick={() => setShowOptionsPanel(!showOptionsPanel)}
+                  className="text-xs py-1 px-2 bg-discord-bg-tertiary text-discord-text hover:bg-opacity-80"
                 >
-                  + Adicionar Parâmetro
+                  {showOptionsPanel ? 'Ocultar Opções' : 'Mostrar Opções'}
                 </Button>
               </div>
-            )}
-          </div>
-        )}
-        
-        {type === 'modal' && (
-          <div className="mb-6 border border-gray-700 rounded-md p-4 bg-discord-bg-secondary">
-            <div className="flex justify-between items-center mb-3">
-              <Label className="text-discord-text-secondary text-sm font-medium">
-                Configuração do Modal
-              </Label>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <Label className="block text-discord-text-secondary text-xs mb-1">ID do Modal</Label>
-                <Input
-                  value={modalFields.customId}
-                  onChange={(e) => setModalFields(prev => ({ ...prev, customId: e.target.value }))}
-                  placeholder="modal_id"
-                  className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                />
-                <p className="text-xs text-discord-text-secondary mt-1">
-                  ID único para identificar este modal. Use apenas letras minúsculas, números e underscores.
-                </p>
-              </div>
               
-              <div>
-                <Label className="block text-discord-text-secondary text-xs mb-1">Título do Modal</Label>
-                <Input
-                  value={modalFields.title}
-                  onChange={(e) => setModalFields(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Título do Modal"
-                  className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                />
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <Label className="text-discord-text-secondary text-sm">Campos do Modal</Label>
+              {showOptionsPanel && (
+                <div className="space-y-4">
+                  <p className="text-xs text-discord-text-secondary">
+                    Define parâmetros que os usuários fornecerão ao usar este comando em barra (slash). 
+                    Eles aparecerão como opções no Discord quando os usuários digitarem o comando.
+                  </p>
+                  
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={options.map((_, index) => index)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {options.map((option, index) => (
+                        <SortableParameter
+                          key={index}
+                          option={option}
+                          index={index}
+                          updateOption={updateOption}
+                          removeOption={removeOption}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                  
                   <Button
                     type="button"
-                    onClick={addModalField}
-                    className="text-xs py-1 px-2 bg-discord-bg-tertiary text-discord-text hover:bg-opacity-80"
+                    onClick={addOption}
+                    className="w-full py-2 mt-2 border border-dashed border-discord-blurple bg-discord-bg-secondary text-discord-blurple hover:bg-discord-blurple hover:bg-opacity-10"
                   >
-                    + Adicionar Campo
+                    + Adicionar Parâmetro
                   </Button>
                 </div>
-                
-                {modalFields.fields.map((field, index) => (
-                  <div key={index} className="border border-gray-700 rounded p-3 space-y-3">
-                    <div className="flex justify-between">
-                      <h4 className="text-sm font-medium text-discord-text">Campo #{index + 1}</h4>
-                      <Button
-                        type="button"
-                        onClick={() => removeModalField(index)}
-                        className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
-                        variant="ghost"
-                        animationType="scale"
-                        iconLeft="fas fa-times"
-                      >
-                        Remover
-                      </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <Label className="block text-discord-text-secondary text-xs mb-1">ID do Campo</Label>
-                        <Input
-                          value={field.customId}
-                          onChange={(e) => updateModalField(index, 'customId', e.target.value)}
-                          placeholder="field_id"
-                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label className="block text-discord-text-secondary text-xs mb-1">Estilo</Label>
-                        <Select
-                          value={field.style}
-                          onValueChange={(value: 'SHORT' | 'PARAGRAPH') => updateModalField(index, 'style', value)}
-                        >
-                          <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
-                            <SelectValue placeholder="Selecione o estilo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="SHORT">Campo Curto</SelectItem>
-                            <SelectItem value="PARAGRAPH">Campo Longo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label className="block text-discord-text-secondary text-xs mb-1">Rótulo</Label>
-                      <Input
-                        value={field.label}
-                        onChange={(e) => updateModalField(index, 'label', e.target.value)}
-                        placeholder="Rótulo do campo"
-                        className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label className="block text-discord-text-secondary text-xs mb-1">Placeholder</Label>
-                      <Input
-                        value={field.placeholder || ''}
-                        onChange={(e) => updateModalField(index, 'placeholder', e.target.value)}
-                        placeholder="Texto de exemplo"
-                        className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <Label className="block text-discord-text-secondary text-xs mb-1">Tamanho Mínimo</Label>
-                        <Input
-                          type="number"
-                          value={field.minLength || ''}
-                          onChange={(e) => updateModalField(index, 'minLength', e.target.value ? parseInt(e.target.value) : undefined)}
-                          placeholder="0"
-                          min="0"
-                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label className="block text-discord-text-secondary text-xs mb-1">Tamanho Máximo</Label>
-                        <Input
-                          type="number"
-                          value={field.maxLength || ''}
-                          onChange={(e) => updateModalField(index, 'maxLength', e.target.value ? parseInt(e.target.value) : undefined)}
-                          placeholder="4000"
-                          min="1"
-                          max="4000"
-                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <ToggleSwitch
-                        checked={field.required || false}
-                        onChange={(checked) => updateModalField(index, 'required', checked)}
-                        label="Campo obrigatório"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
-          </div>
-        )}
-        
-        <div className="flex justify-end space-x-3">
-          {isEditing && (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isProcessing}
-              className="px-4 py-2 bg-discord-red text-white rounded hover:bg-opacity-80"
-              iconLeft="fas fa-trash-alt"
-              animationType="scale"
-              isLoading={deleteCommandMutation.isPending}
-            >
-              Excluir
-            </Button>
           )}
           
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isProcessing}
-            className="px-4 py-2 bg-discord-bg-tertiary text-discord-text-secondary rounded hover:bg-opacity-80"
-            animationType="bounce"
-          >
-            Cancelar
-          </Button>
+          {type === 'modal' && (
+            <div className="mb-6 border border-gray-700 rounded-md p-4 bg-discord-bg-secondary">
+              <div className="flex justify-between items-center mb-3">
+                <Label className="text-discord-text-secondary text-sm font-medium">
+                  Configuração do Modal
+                </Label>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label className="block text-discord-text-secondary text-xs mb-1">ID do Modal</Label>
+                  <Input
+                    value={modalFields.customId}
+                    onChange={(e) => setModalFields(prev => ({ ...prev, customId: e.target.value }))}
+                    placeholder="modal_id"
+                    className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                  />
+                  <p className="text-xs text-discord-text-secondary mt-1">
+                    ID único para identificar este modal. Use apenas letras minúsculas, números e underscores.
+                  </p>
+                </div>
+                
+                <div>
+                  <Label className="block text-discord-text-secondary text-xs mb-1">Título do Modal</Label>
+                  <Input
+                    value={modalFields.title}
+                    onChange={(e) => setModalFields(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Título do Modal"
+                    className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-discord-text-secondary text-sm">Campos do Modal</Label>
+                    <Button
+                      type="button"
+                      onClick={addModalField}
+                      className="text-xs py-1 px-2 bg-discord-bg-tertiary text-discord-text hover:bg-opacity-80"
+                    >
+                      + Adicionar Campo
+                    </Button>
+                  </div>
+                  
+                  {modalFields.fields.map((field, index) => (
+                    <div key={index} className="border border-gray-700 rounded p-3 space-y-3">
+                      <div className="flex justify-between">
+                        <h4 className="text-sm font-medium text-discord-text">Campo #{index + 1}</h4>
+                        <Button
+                          type="button"
+                          onClick={() => removeModalField(index)}
+                          className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
+                          variant="ghost"
+                          animationType="scale"
+                          iconLeft="fas fa-times"
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="block text-discord-text-secondary text-xs mb-1">ID do Campo</Label>
+                          <Input
+                            value={field.customId}
+                            onChange={(e) => updateModalField(index, 'customId', e.target.value)}
+                            placeholder="field_id"
+                            className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label className="block text-discord-text-secondary text-xs mb-1">Estilo</Label>
+                          <Select
+                            value={field.style}
+                            onValueChange={(value: 'SHORT' | 'PARAGRAPH') => updateModalField(index, 'style', value)}
+                          >
+                            <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
+                              <SelectValue placeholder="Selecione o estilo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SHORT">Campo Curto</SelectItem>
+                              <SelectItem value="PARAGRAPH">Campo Longo</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label className="block text-discord-text-secondary text-xs mb-1">Rótulo</Label>
+                        <Input
+                          value={field.label}
+                          onChange={(e) => updateModalField(index, 'label', e.target.value)}
+                          placeholder="Rótulo do campo"
+                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="block text-discord-text-secondary text-xs mb-1">Placeholder</Label>
+                        <Input
+                          value={field.placeholder || ''}
+                          onChange={(e) => updateModalField(index, 'placeholder', e.target.value)}
+                          placeholder="Texto de exemplo"
+                          className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="block text-discord-text-secondary text-xs mb-1">Tamanho Mínimo</Label>
+                          <Input
+                            type="number"
+                            value={field.minLength || ''}
+                            onChange={(e) => updateModalField(index, 'minLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="0"
+                            min="0"
+                            className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label className="block text-discord-text-secondary text-xs mb-1">Tamanho Máximo</Label>
+                          <Input
+                            type="number"
+                            value={field.maxLength || ''}
+                            onChange={(e) => updateModalField(index, 'maxLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="4000"
+                            min="1"
+                            max="4000"
+                            className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <ToggleSwitch
+                          checked={field.required || false}
+                          onChange={(checked) => updateModalField(index, 'required', checked)}
+                          label="Campo obrigatório"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           
-          <Button
-            type="submit"
-            disabled={isProcessing}
-            className="px-4 py-2 bg-discord-blurple text-white rounded hover:bg-opacity-80"
-            animationType="bounce"
-            isLoading={isProcessing}
-          >
-            {isEditing ? 'Atualizar' : 'Criar'} Comando
-          </Button>
+          {/* Form Actions */}
+          <div className="flex flex-wrap justify-end gap-2 mt-6">
+            {isEditing && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-discord-red text-white rounded hover:bg-opacity-80"
+                iconLeft="fas fa-trash-alt"
+                animationType="scale"
+                isLoading={deleteCommandMutation.isPending}
+              >
+                Excluir
+              </Button>
+            )}
+            
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isProcessing}
+              className="px-4 py-2 bg-discord-bg-tertiary text-discord-text-secondary rounded hover:bg-opacity-80"
+              animationType="bounce"
+            >
+              Cancelar
+            </Button>
+            
+            <Button
+              type="submit"
+              disabled={isProcessing}
+              className="px-4 py-2 bg-discord-blurple text-white rounded hover:bg-opacity-80"
+              animationType="bounce"
+              isLoading={isProcessing}
+            >
+              {isEditing ? 'Atualizar' : 'Criar'} Comando
+            </Button>
+          </div>
         </div>
       </form>
     </div>
