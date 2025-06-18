@@ -3,7 +3,7 @@ import { Client, GatewayIntentBits, Partials, Collection, Events, EmbedBuilder,
   ChatInputCommandInteraction, TextChannel, DMChannel, VoiceChannel, Channel, BaseGuildTextChannel,
   GuildMember, PartialGuildMember, GuildBasedChannel, AutocompleteInteraction, Role,
   ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ButtonInteraction, ActivityType,
-  ContextMenuCommandInteraction, User, ModalBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction } from 'discord.js';
+  ContextMenuCommandInteraction, User, ModalBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction, MessageFlags } from 'discord.js';
 import axios from 'axios';
 import { storage } from './storage';
 import { BotConfig, Server, InsertServer, Command, InsertCommandLog, CommandOption, BotStat } from '@shared/schema';
@@ -716,7 +716,7 @@ class DiscordBot {
       }
 
       console.log('Getting autocomplete suggestions...');
-      const suggestions = await this.getAutocompleteSuggestions(command, option, focusedOption.value);
+      const suggestions = await this.getAutocompleteSuggestions(command, option, focusedOption.value, interaction);
       console.log(`Retrieved ${suggestions.length} suggestions`);
 
       // Verifica se a interação ainda é válida antes de responder
@@ -769,7 +769,8 @@ class DiscordBot {
   private async getAutocompleteSuggestions(
     command: Command,
     option: CommandOption,
-    input: string
+    input: string,
+    interaction: AutocompleteInteraction
   ): Promise<Array<{ name: string; value: string }>> {
     const cacheKey = `${command.name}_${option.name}_${input}`;
     const cached = this.autocompleteCache.get(cacheKey);
@@ -779,6 +780,118 @@ class DiscordBot {
       console.log('Using cached autocomplete suggestions');
       return cached.data;
     }
+
+    // Coletar todos os parâmetros já informados para usar como filtros
+    const previousParameters: Record<string, any> = {};
+    
+    if (command.options && Array.isArray(command.options)) {
+      command.options.forEach(cmdOption => {
+        if (cmdOption.name !== option.name) { // Não incluir o parâmetro atual
+          try {
+            // Verificar se deve usar este parâmetro como filtro
+            const shouldUseAsFilter = option.autocomplete?.usePreviousParameters && 
+              (!option.autocomplete?.filterByParameters || 
+               option.autocomplete?.filterByParameters.length === 0 ||
+               option.autocomplete?.filterByParameters.includes(cmdOption.name));
+            
+            if (!shouldUseAsFilter) {
+              return; // Pular este parâmetro se não deve ser usado como filtro
+            }
+            
+            // Normalizar o nome da opção para corresponder ao que o Discord envia
+            const normalizedOptionName = cmdOption.name.toLowerCase().replace(/\s+/g, '_');
+            
+            // Tentar obter o valor do parâmetro usando apenas métodos disponíveis em autocomplete
+            let value: any = null;
+            
+            // Tentar acessar via data (método mais confiável para autocomplete)
+            const optionData = interaction.options.data.find(opt => 
+              opt.name === normalizedOptionName || opt.name === cmdOption.name
+            );
+            
+            if (optionData && optionData.value !== undefined) {
+              switch (cmdOption.type) {
+                case 'STRING':
+                case 'INTEGER':
+                case 'BOOLEAN':
+                  value = optionData.value;
+                  break;
+                case 'USER':
+                  if (optionData.user) {
+                    value = { id: optionData.user.id, username: optionData.user.username };
+                  } else if (optionData.value) {
+                    // Se apenas o ID estiver disponível
+                    value = { id: optionData.value, username: 'Unknown User' };
+                  }
+                  break;
+                case 'CHANNEL':
+                  if (optionData.channel) {
+                    value = { id: optionData.channel.id, name: optionData.channel.name };
+                  } else if (optionData.value) {
+                    // Se apenas o ID estiver disponível
+                    value = { id: optionData.value, name: 'Unknown Channel' };
+                  }
+                  break;
+                case 'ROLE':
+                  if (optionData.role) {
+                    value = { id: optionData.role.id, name: optionData.role.name };
+                  } else if (optionData.value) {
+                    // Se apenas o ID estiver disponível
+                    value = { id: optionData.value, name: 'Unknown Role' };
+                  }
+                  break;
+                case 'ATTACHMENT':
+                  if (optionData.attachment) {
+                    value = {
+                      id: optionData.attachment.id,
+                      name: optionData.attachment.name,
+                      url: optionData.attachment.url,
+                      size: optionData.attachment.size
+                    };
+                  }
+                  break;
+              }
+            }
+            
+            // Tentar usando os métodos básicos disponíveis em autocomplete
+            if (value === null || value === undefined) {
+              try {
+                switch (cmdOption.type) {
+                  case 'STRING':
+                    value = interaction.options.getString(normalizedOptionName);
+                    break;
+                  case 'INTEGER':
+                    value = interaction.options.getInteger(normalizedOptionName);
+                    break;
+                  case 'BOOLEAN':
+                    value = interaction.options.getBoolean(normalizedOptionName);
+                    break;
+                }
+              } catch (getError) {
+                // Método não disponível em autocomplete, isso é esperado
+                console.log(`Method not available for ${normalizedOptionName} in autocomplete context`);
+              }
+            }
+            
+            if (value !== null && value !== undefined) {
+              previousParameters[cmdOption.name] = value;
+              console.log(`Added parameter ${cmdOption.name} with value:`, value);
+            }
+          } catch (error) {
+            // Parâmetro não foi informado ainda, ignorar
+            console.log(`Parameter ${cmdOption.name} not provided yet or error accessing:`, error);
+          }
+        }
+      });
+    }
+
+    console.log('Previous parameters for autocomplete filtering:', previousParameters);
+    console.log('All interaction options data:', interaction.options.data);
+    console.log('Command options being checked:', Array.isArray(command.options) ? command.options.map((opt: CommandOption) => ({
+      name: opt.name,
+      type: opt.type,
+      normalizedName: opt.name.toLowerCase().replace(/\s+/g, '_')
+    })) : 'No options array');
 
     // Se tiver uma URL de API configurada, usa ela
     if (option.autocomplete?.apiUrl) {
@@ -792,12 +905,16 @@ class DiscordBot {
           data: option.autocomplete.apiMethod === 'POST' ? {
             ...option.autocomplete.apiBody,
             input,
-            botId: this.client.user?.id
+            botId: this.client.user?.id,
+            previousParameters, // Adicionar parâmetros anteriores
+            currentParameter: option.name // Nome do parâmetro atual
           } : undefined,
           params: option.autocomplete.apiMethod === 'GET' ? {
             ...option.autocomplete.apiBody,
             input,
-            botId: this.client.user?.id
+            botId: this.client.user?.id,
+            previousParameters: JSON.stringify(previousParameters), // Para GET, serializar como string
+            currentParameter: option.name
           } : undefined,
           timeout: 1500 // Reduced timeout to 1.5 seconds
         };
@@ -833,21 +950,21 @@ class DiscordBot {
       }
     }
 
-    // Se não tiver URL de API, usa os serviços internos
+    // Se não tiver URL de API, usa os serviços internos com filtros
     let suggestions: Array<{ name: string; value: string }> = [];
     
     switch (option.autocomplete?.service) {
       case 'servers':
-        suggestions = await this.getServerSuggestions(input);
+        suggestions = await this.getServerSuggestions(input, previousParameters);
         break;
       case 'channels':
-        suggestions = await this.getChannelSuggestions(input);
+        suggestions = await this.getChannelSuggestions(input, previousParameters);
         break;
       case 'roles':
-        suggestions = await this.getRoleSuggestions(input);
+        suggestions = await this.getRoleSuggestions(input, previousParameters);
         break;
       case 'users':
-        suggestions = await this.getUserSuggestions(input);
+        suggestions = await this.getUserSuggestions(input, previousParameters);
         break;
     }
 
@@ -860,7 +977,7 @@ class DiscordBot {
     return suggestions;
   }
 
-  private async getServerSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
+  private async getServerSuggestions(input: string, previousParameters: Record<string, any>): Promise<Array<{ name: string; value: string }>> {
     const servers = await storage.getServers(this.client.user?.id || 'unknown');
     return servers
       .filter(server => server.name.toLowerCase().includes(input.toLowerCase()))
@@ -871,15 +988,38 @@ class DiscordBot {
       .slice(0, 25); // Discord limita a 25 sugestões
   }
 
-  private async getChannelSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
+  private async getChannelSuggestions(input: string, previousParameters: Record<string, any>): Promise<Array<{ name: string; value: string }>> {
     const guild = this.client.guilds.cache.first();
     if (!guild) return [];
     
-    return guild.channels.cache
+    let channels = guild.channels.cache
       .filter(channel => 
         channel.name.toLowerCase().includes(input.toLowerCase()) &&
         channel instanceof TextChannel
-      )
+      );
+
+    // Exemplo de filtro baseado em parâmetro anterior
+    // Se foi especificado um servidor anteriormente, filtrar apenas canais desse servidor
+    if (previousParameters.server_id) {
+      // Aqui você poderia filtrar canais baseado no servidor selecionado
+      console.log(`Filtering channels for server: ${previousParameters.server_id}`);
+    }
+
+    // Se foi especificado um tipo de canal anteriormente
+    if (previousParameters.channel_type) {
+      channels = channels.filter(channel => {
+        switch (previousParameters.channel_type) {
+          case 'text':
+            return channel instanceof TextChannel;
+          case 'voice':
+            return channel instanceof VoiceChannel;
+          default:
+            return true;
+        }
+      });
+    }
+    
+    return channels
       .map(channel => ({
         name: channel.name,
         value: channel.id
@@ -887,14 +1027,43 @@ class DiscordBot {
       .slice(0, 25);
   }
 
-  private async getRoleSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
+  private async getRoleSuggestions(input: string, previousParameters: Record<string, any>): Promise<Array<{ name: string; value: string }>> {
     const guild = this.client.guilds.cache.first();
     if (!guild) return [];
     
-    return guild.roles.cache
+    let roles = guild.roles.cache
       .filter(role => 
         role.name.toLowerCase().includes(input.toLowerCase())
-      )
+      );
+
+    // Exemplo de filtro baseado em parâmetro anterior
+    // Se foi especificado um usuário anteriormente, mostrar apenas cargos que o usuário pode gerenciar
+    if (previousParameters.user_id) {
+      const member = await guild.members.fetch(previousParameters.user_id).catch(() => null);
+      if (member) {
+        // Filtrar apenas cargos que o membro pode gerenciar
+        roles = roles.filter(role => 
+          member.permissions.has('ManageRoles') && 
+          role.position < member.roles.highest.position
+        );
+      }
+    }
+
+    // Se foi especificado um tipo de cargo anteriormente
+    if (previousParameters.role_type) {
+      roles = roles.filter(role => {
+        switch (previousParameters.role_type) {
+          case 'moderator':
+            return role.permissions.has('ManageMessages') || role.permissions.has('KickMembers');
+          case 'admin':
+            return role.permissions.has('Administrator');
+          default:
+            return true;
+        }
+      });
+    }
+    
+    return roles
       .map(role => ({
         name: role.name,
         value: role.id
@@ -902,14 +1071,52 @@ class DiscordBot {
       .slice(0, 25);
   }
 
-  private async getUserSuggestions(input: string): Promise<Array<{ name: string; value: string }>> {
+  private async getUserSuggestions(input: string, previousParameters: Record<string, any>): Promise<Array<{ name: string; value: string }>> {
     const guild = this.client.guilds.cache.first();
     if (!guild) return [];
     
-    return guild.members.cache
+    let members = guild.members.cache
       .filter(member => 
         member.user.username.toLowerCase().includes(input.toLowerCase())
-      )
+      );
+
+    // Exemplo de filtro baseado em parâmetro anterior
+    // Se foi especificado um cargo anteriormente, mostrar apenas usuários com esse cargo
+    if (previousParameters.role_id) {
+      members = members.filter(member => 
+        member.roles.cache.has(previousParameters.role_id)
+      );
+    }
+
+    // Se foi especificado um canal anteriormente, mostrar apenas usuários que podem ver esse canal
+    if (previousParameters.channel_id) {
+      const channel = guild.channels.cache.get(previousParameters.channel_id);
+      if (channel) {
+        members = members.filter(member => 
+          channel.permissionsFor(member).has('ViewChannel')
+        );
+      }
+    }
+
+    // Se foi especificado um status de usuário anteriormente
+    if (previousParameters.user_status) {
+      members = members.filter(member => {
+        switch (previousParameters.user_status) {
+          case 'online':
+            return member.presence?.status === 'online';
+          case 'offline':
+            return !member.presence || member.presence.status === 'offline';
+          case 'idle':
+            return member.presence?.status === 'idle';
+          case 'dnd':
+            return member.presence?.status === 'dnd';
+          default:
+            return true;
+        }
+      });
+    }
+    
+    return members
       .map(member => ({
         name: member.user.username,
         value: member.id
@@ -1024,7 +1231,7 @@ class DiscordBot {
     if (!server || !server.enabled) {
       return interaction.reply({ 
         content: 'This bot is disabled in this server.', 
-        ephemeral: true 
+        flags: [MessageFlags.Ephemeral] 
       });
     }
     
@@ -1040,7 +1247,7 @@ class DiscordBot {
     if (!command || !command.active) {
       return interaction.reply({ 
         content: 'That command no longer exists or is inactive.', 
-        ephemeral: true 
+        flags: [MessageFlags.Ephemeral] 
       });
     }
     
@@ -1077,7 +1284,7 @@ class DiscordBot {
         
         return interaction.reply({ 
           content: 'You do not have permission to use this command.', 
-          ephemeral: true 
+          flags: [MessageFlags.Ephemeral] 
         });
       }
     }
@@ -1203,7 +1410,7 @@ class DiscordBot {
         const reply = await interaction.reply({
           content: confirmationMessage,
           components: [row],
-          ephemeral: true
+          flags: [MessageFlags.Ephemeral]
         });
 
         // Create a collector for button interactions
@@ -1216,7 +1423,7 @@ class DiscordBot {
           if (buttonInteraction.user.id !== interaction.user.id) {
             return buttonInteraction.reply({
               content: 'Only the command initiator can use these buttons.',
-              ephemeral: true
+              flags: [MessageFlags.Ephemeral]
             });
           }
 
@@ -1245,7 +1452,7 @@ class DiscordBot {
             const cancelMessage = command.cancelMessage || 'Ação cancelada.';
             await buttonInteraction.followUp({
               content: cancelMessage,
-              ephemeral: true
+              flags: [MessageFlags.Ephemeral]
             });
           }
         });
@@ -1271,7 +1478,7 @@ class DiscordBot {
         if (interaction.deferred) {
           await interaction.editReply('Ocorreu um erro ao executar este comando.');
         } else {
-          await interaction.reply({ content: 'Ocorreu um erro ao executar este comando.', ephemeral: true });
+          await interaction.reply({ content: 'Ocorreu um erro ao executar este comando.', flags: [MessageFlags.Ephemeral] });
         }
       } catch (replyError) {
         console.error('Error sending error message:', replyError);
@@ -1303,7 +1510,7 @@ class DiscordBot {
   ) {
     // Defer reply if not already deferred
     if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply({ ephemeral: command.deleteUserMessage || false });
+      await interaction.deferReply({ flags: command.deleteUserMessage ? undefined : [MessageFlags.Ephemeral] });
     }
     
     // Process the command
@@ -1344,13 +1551,13 @@ class DiscordBot {
       if (interaction.deferred) {
         await interaction.editReply({ embeds: [embed] });
       } else {
-        await interaction.followUp({ embeds: [embed], ephemeral: command.deleteUserMessage || false });
+        await interaction.followUp({ embeds: [embed], flags: command.deleteUserMessage ? undefined : [MessageFlags.Ephemeral] });
       }
     } else {
       if (interaction.deferred) {
         await interaction.editReply(response);
       } else {
-        await interaction.followUp({ content: response, ephemeral: command.deleteUserMessage || false });
+        await interaction.followUp({ content: response, flags: command.deleteUserMessage ? undefined : [MessageFlags.Ephemeral] });
       }
     }
     
@@ -1397,7 +1604,7 @@ class DiscordBot {
         if (webhookStatus === 'Erro') {
           webhookError = `HTTP ${webhookResponse.status}`;
           if (command.webhookFailureMessage) {
-            await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
+            await interaction.followUp({ content: command.webhookFailureMessage, flags: [MessageFlags.Ephemeral] });
           }
         }
       } catch (error) {
@@ -1406,7 +1613,7 @@ class DiscordBot {
         webhookError = error instanceof Error ? error.message : 'Unknown webhook error';
         console.error('Error calling webhook:', error);
         if (command.webhookFailureMessage) {
-          await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
+          await interaction.followUp({ content: command.webhookFailureMessage, flags: [MessageFlags.Ephemeral] });
         }
       }
     }
@@ -1496,7 +1703,7 @@ class DiscordBot {
     try {
       const command = this.commands.get(interaction.commandName);
       if (!command) {
-        await interaction.reply({ content: 'Command not found.', ephemeral: true });
+        await interaction.reply({ content: 'Command not found.', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
@@ -1521,7 +1728,7 @@ class DiscordBot {
           .replace('{server}', interaction.guild?.name || 'DM');
 
         // Send the response
-        await interaction.reply({ content: response, ephemeral: true });
+        await interaction.reply({ content: response, flags: [MessageFlags.Ephemeral] });
 
         // Handle webhook if configured
         let callbackStatus: 'Sucesso' | 'Erro' | 'Permissão Negada' | undefined = undefined;
@@ -1569,7 +1776,7 @@ class DiscordBot {
             if (callbackStatus === 'Erro') {
               callbackError = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}`;
               if (command.webhookFailureMessage) {
-                await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
+                await interaction.followUp({ content: command.webhookFailureMessage, flags: [MessageFlags.Ephemeral] });
               }
             }
           } catch (error) {
@@ -1578,7 +1785,7 @@ class DiscordBot {
             callbackError = error instanceof Error ? error.message : 'Unknown webhook error';
             console.error(`Error calling webhook for command ${command.name}:`, callbackError);
             if (command.webhookFailureMessage) {
-              await interaction.followUp({ content: command.webhookFailureMessage, ephemeral: true });
+              await interaction.followUp({ content: command.webhookFailureMessage, flags: [MessageFlags.Ephemeral] });
             }
           }
         }
@@ -1603,7 +1810,7 @@ class DiscordBot {
       console.error('Error handling context menu command:', error);
       await interaction.reply({ 
         content: 'There was an error executing this command.', 
-        ephemeral: true 
+        flags: [MessageFlags.Ephemeral] 
       });
     }
   }
@@ -1620,7 +1827,7 @@ class DiscordBot {
       if (!command || !command.active) {
         return interaction.reply({ 
           content: 'Este modal não está mais disponível.', 
-          ephemeral: true 
+          flags: [MessageFlags.Ephemeral] 
         });
       }
 
@@ -1673,7 +1880,7 @@ class DiscordBot {
           if (webhookStatus === 'Erro') {
             webhookError = `HTTP ${webhookResponse.status}`;
             if (command.webhookFailureMessage) {
-              await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
+              await interaction.reply({ content: command.webhookFailureMessage, flags: [MessageFlags.Ephemeral] });
             }
           }
         } catch (error) {
@@ -1682,7 +1889,7 @@ class DiscordBot {
           webhookError = error instanceof Error ? error.message : 'Unknown webhook error';
           console.error('Error calling webhook:', error);
           if (command.webhookFailureMessage) {
-            await interaction.reply({ content: command.webhookFailureMessage, ephemeral: true });
+            await interaction.reply({ content: command.webhookFailureMessage, flags: [MessageFlags.Ephemeral] });
           }
         }
       }
@@ -1729,7 +1936,7 @@ class DiscordBot {
         if (!hasPermission) {
           return interaction.reply({ 
             content: 'Você não tem permissão para usar este comando.', 
-            ephemeral: true 
+            flags: [MessageFlags.Ephemeral] 
           });
         }
       }
@@ -1774,7 +1981,7 @@ class DiscordBot {
         const reply = await interaction.reply({
           content: confirmationMessage,
           components: [row],
-          ephemeral: true
+          flags: [MessageFlags.Ephemeral]
         });
         
         // Create a collector for button interactions
@@ -1787,7 +1994,7 @@ class DiscordBot {
           if (buttonInteraction.user.id !== interaction.user.id) {
             return buttonInteraction.reply({
               content: 'Apenas o iniciador do comando pode usar estes botões.',
-              ephemeral: true
+              flags: [MessageFlags.Ephemeral]
             });
           }
           
@@ -1816,7 +2023,7 @@ class DiscordBot {
             const cancelMessage = command.cancelMessage || 'Ação cancelada.';
             await buttonInteraction.followUp({
               content: cancelMessage,
-              ephemeral: true
+              flags: [MessageFlags.Ephemeral]
             });
           }
         });
@@ -1840,7 +2047,7 @@ class DiscordBot {
       try {
         await interaction.reply({ 
           content: 'Ocorreu um erro ao processar este modal.', 
-          ephemeral: true 
+          flags: [MessageFlags.Ephemeral] 
         });
       } catch (replyError) {
         console.error('Error sending error message:', replyError);

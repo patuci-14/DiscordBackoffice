@@ -243,6 +243,8 @@ export type CommandOption = {
     apiHeaders?: Record<string, string>; // Headers opcionais para a requisição
     apiBody?: Record<string, any>; // Body opcional para requisições POST
     parameters?: Record<string, any>; // Parâmetros adicionais para o serviço
+    usePreviousParameters?: boolean; // Se deve usar parâmetros anteriores como filtros
+    filterByParameters?: string[]; // Lista de nomes de parâmetros para usar como filtros
   };
 };
 

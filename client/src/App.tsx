@@ -1,33 +1,53 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import PageTransition from "@/components/ui/page-transition";
+import React, { useEffect, useState } from "react";
 
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Config from "@/pages/config";
 import Commands from "@/pages/commands";
 import Logs from "@/pages/logs";
-import Plugins from "@/pages/plugins";
 import NotFound from "@/pages/not-found";
 
 import { useAuth } from "@/components/auth/auth-provider";
-import { useEffect } from "react";
-import { useLocation } from "wouter";
 
-// Protected route component that redirects to login if not authenticated
-function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>, [key: string]: any }) {
+function Router() {
   const { isAuthenticated, loading } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location] = useLocation();
+  const [currentPath, setCurrentPath] = useState(location);
   
+  // Atualizar o caminho atual quando a localização mudar
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    setCurrentPath(location);
+  }, [location]);
+  
+  // If the user is on the root path, redirect them appropriately
+  useEffect(() => {
+    if (!loading && location === '/') {
+      console.log('Root path: Redirecting based on auth status:', isAuthenticated);
+      if (isAuthenticated) {
+        window.location.href = '/dashboard';
+      } else {
+        window.location.href = '/login';
+      }
+    }
+  }, [location, isAuthenticated, loading]);
+
+  // Redirecionar para login se não estiver autenticado em rotas protegidas
+  useEffect(() => {
+    if (!loading && !isAuthenticated && 
+        currentPath !== '/login' && 
+        currentPath !== '/') {
       console.log('Protected route: Not authenticated, redirecting to login');
       window.location.href = '/login';
     }
-  }, [isAuthenticated, loading]);
+  }, [currentPath, isAuthenticated, loading]);
   
+  // Mostrar tela de carregamento enquanto verifica autenticação
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-discord-bg-tertiary">
@@ -41,39 +61,49 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
     );
   }
   
-  if (!isAuthenticated) {
-    return null; // Will redirect due to the useEffect
-  }
-  
-  return <Component {...rest} />;
-}
-
-function Router() {
-  const { isAuthenticated, loading } = useAuth();
-  const [location] = useLocation();
-  
-  // If the user is on the root path, redirect them appropriately
-  useEffect(() => {
-    if (!loading && location === '/') {
-      console.log('Root path: Redirecting based on auth status:', isAuthenticated);
-      if (isAuthenticated) {
-        window.location.href = '/dashboard';
-      } else {
-        window.location.href = '/login';
-      }
+  // Renderizar o componente apropriado com base no caminho atual
+  const renderRoute = () => {
+    // Verificar se é uma rota protegida e se o usuário está autenticado
+    const isProtectedRoute = currentPath !== '/login';
+    
+    if (isProtectedRoute && !isAuthenticated) {
+      return null; // Será redirecionado pelo useEffect
     }
-  }, [location, isAuthenticated, loading]);
+    
+    switch (currentPath) {
+      case '/login':
+        return <Login />;
+      case '/dashboard':
+        return <Dashboard />;
+      case '/config':
+        return <Config />;
+      case '/commands':
+        return <Commands />;
+      case '/logs':
+        return <Logs />;
+      default:
+        return <NotFound />;
+    }
+  };
   
   return (
-    <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/dashboard" component={(props) => <ProtectedRoute component={Dashboard} {...props} />} />
-      <Route path="/config" component={(props) => <ProtectedRoute component={Config} {...props} />} />
-      <Route path="/commands" component={(props) => <ProtectedRoute component={Commands} {...props} />} />
-      <Route path="/logs" component={(props) => <ProtectedRoute component={Logs} {...props} />} />
-      <Route path="/plugins" component={(props) => <ProtectedRoute component={Plugins} {...props} />} />
-      <Route component={NotFound} />
-    </Switch>
+    <div className="w-full min-h-screen bg-discord-bg-primary">
+      <PageTransition className="w-full">
+        {renderRoute()}
+      </PageTransition>
+      
+      {/* Manter o Switch para gerenciar as rotas */}
+      <div style={{ display: 'none' }}>
+        <Switch>
+          <Route path="/login" />
+          <Route path="/dashboard" />
+          <Route path="/config" />
+          <Route path="/commands" />
+          <Route path="/logs" />
+          <Route />
+        </Switch>
+      </div>
+    </div>
   );
 }
 

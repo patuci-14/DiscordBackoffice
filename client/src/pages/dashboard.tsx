@@ -83,8 +83,10 @@ const Dashboard: React.FC = () => {
       variant="outline" 
       onClick={handleRefresh} 
       className="bg-discord-bg-secondary hover:bg-discord-bg-tertiary px-3 py-1 rounded-md text-sm inline-flex items-center"
+      iconLeft="fas fa-sync-alt"
+      animationType="pulse"
     >
-      <i className="fas fa-sync-alt mr-2"></i> Recarregar
+      Recarregar
     </Button>
   );
 

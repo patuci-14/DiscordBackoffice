@@ -26,7 +26,7 @@ const Login: React.FC = () => {
     e.preventDefault();
     
     if (!token.trim()) {
-      setError('Bot token is required');
+      setError('Token do bot é obrigatório');
       return;
     }
     
@@ -44,11 +44,11 @@ const Login: React.FC = () => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('An unexpected error occurred. Please try again.');
+      setError('Ocorreu um erro inesperado. Por favor, tente novamente.');
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
-        description: 'Could not connect to Discord. Check your token and try again.',
+        title: 'Falha no Login',
+        description: 'Não foi possível conectar ao Discord. Verifique seu token e tente novamente.',
       });
     } finally {
       setIsLoading(false);
@@ -74,7 +74,7 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-discord-bg-tertiary">
-      <Card className="bg-discord-bg-secondary rounded-lg shadow-xl p-8 max-w-md w-full">
+      <Card className="bg-discord-bg-secondary rounded-lg shadow-xl p-8 max-w-xl w-full">
         <CardContent className="p-0">
           <div className="text-center mb-8">
             <i className="fab fa-discord text-discord-blurple text-5xl mb-4"></i>
@@ -85,41 +85,41 @@ const Login: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="bot-token" className="block text-sm font-medium mb-1 text-white">Token do Bot</label>
-              <div className="relative">
+              <div className="relative flex">
                 <Input
                   id="bot-token"
                   type={showToken ? "text" : "password"}
                   placeholder="Digite o token do bot"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
-                  className="w-full px-4 py-2 pr-[35px] bg-discord-bg-tertiary border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-discord-blurple focus:border-transparent text-white"
+                  className="w-full px-4 py-2 pr-[45px] bg-discord-bg-tertiary border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-discord-blurple focus:border-transparent text-white"
                 />
                 <button 
                   type="button" 
+                  style={{ right: '77px' }}
                   onClick={toggleTokenVisibility}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-discord-text-secondary hover:text-white"
+                  className="absolute inset-y-0 right-0 flex items-center text-discord-text-secondary hover:text-white"
                 >
                   <i className={showToken ? "far fa-eye-slash" : "far fa-eye"}></i>
                 </button>
-              </div>
-              <p className="text-xs text-discord-text-secondary mt-1">Seu token é armazenado de forma segura e nunca é exposto ao frontend</p>
-            </div>
-            
-            <div className="pt-2">
-              <Button
+                <Button
                 type="submit"
+                style={{ marginLeft: '0.5rem' }}
                 disabled={isLoading}
                 className="w-full bg-discord-blurple hover:bg-opacity-80 text-white font-medium py-2 px-4 rounded-md transition duration-200"
               >
                 {isLoading ? (
                   <>
                     <i className="fas fa-circle-notch spin mr-2"></i>
-                    Connecting...
+                    Conectando...
                   </>
                 ) : (
-                  'Conectar Bot'
+                  <>
+                    <i className="fas fa-sign-in-alt mr-2"></i></>
                 )}
               </Button>
+              </div>
+              <p className="text-xs text-discord-text-secondary mt-1">Seu token é armazenado de forma segura e nunca é exposto ao frontend</p>
             </div>
             
             {error && (

@@ -195,8 +195,9 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                         variant="ghost"
                         onClick={() => onEdit(command.id)}
                         className="text-discord-text-secondary hover:text-white mx-1"
+                        animationType="scale"
+                        iconLeft="fas fa-edit"
                       >
-                        <i className="fas fa-edit"></i>
                       </Button>
                     </td>
                   </tr>
@@ -233,6 +234,8 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
               disabled={currentPage === 0}
               onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
               className="px-3 py-1 rounded text-sm"
+              animationType="slide"
+              iconLeft="fas fa-chevron-left"
             >
               Anterior
             </Button>
@@ -241,6 +244,8 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
               disabled={currentPage >= maxPage}
               onClick={() => setCurrentPage(Math.min(maxPage, currentPage + 1))}
               className={`px-3 py-1 rounded text-sm ${currentPage < maxPage ? 'bg-discord-blurple' : 'bg-discord-bg-tertiary text-discord-text-secondary'}`}
+              animationType="slide"
+              iconRight="fas fa-chevron-right"
             >
               Próximo
             </Button>

@@ -1,7 +1,9 @@
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useState, useMemo } from 'react';
 import Sidebar from './sidebar';
 import MobileMenu from './mobile-menu';
 import { useAuth } from '@/components/auth/auth-provider';
+import { motion } from 'framer-motion';
+import PageTransition from '@/components/ui/page-transition';
 
 interface AppShellProps {
   children: ReactNode;
@@ -9,13 +11,17 @@ interface AppShellProps {
   actions?: ReactNode;
 }
 
-const AppShell: React.FC<AppShellProps> = ({ children, title, actions }) => {
+// Memoizar o componente AppShell para evitar re-renderizações desnecessárias
+const AppShell: React.FC<AppShellProps> = React.memo(({ children, title, actions }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isAuthenticated, botInfo } = useAuth();
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
+
+  // Usar ID estático para o layout
+  const layoutId = useMemo(() => "app-shell-layout", []);
 
   if (!isAuthenticated) {
     return null; // Don't render if not authenticated
@@ -29,15 +35,22 @@ const AppShell: React.FC<AppShellProps> = ({ children, title, actions }) => {
       </div>
       
       {/* Mobile Navigation Bar */}
-      <div className="md:hidden w-full bg-discord-bg-secondary p-4 flex justify-between items-center border-b border-gray-700 fixed top-0 z-50">
+      <motion.div 
+        className="md:hidden w-full bg-discord-bg-secondary p-4 flex justify-between items-center border-b border-gray-700 fixed top-0 z-50"
+        layoutId="mobile-nav"
+      >
         <div className="flex items-center">
           <i className="fab fa-discord text-discord-blurple text-xl mr-2"></i>
           <h1 className="font-bold">Bot Backoffice</h1>
         </div>
-        <button onClick={toggleMobileMenu} className="text-discord-text-primary">
+        <motion.button 
+          onClick={toggleMobileMenu} 
+          className="text-discord-text-primary p-2"
+          whileTap={{ scale: 0.9 }}
+        >
           <i className="fas fa-bars"></i>
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
       
       {/* Mobile Menu (shows when toggled) */}
       {mobileMenuOpen && (
@@ -45,18 +58,38 @@ const AppShell: React.FC<AppShellProps> = ({ children, title, actions }) => {
       )}
       
       {/* Main Content */}
-      <main className="flex-1 bg-discord-bg-primary overflow-auto w-full md:ml-64 pt-16 md:pt-0">
+      <motion.main 
+        className="flex-1 bg-discord-bg-primary overflow-auto w-full md:ml-64 pt-16 md:pt-0"
+        layoutId={layoutId}
+      >
         <div className="p-4 md:p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-            <h1 className="text-2xl font-bold mb-3 md:mb-0">{title}</h1>
-            {actions && <div className="w-full md:w-auto">{actions}</div>}
-          </div>
+          <motion.div 
+            className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6"
+            layout
+          >
+            <motion.h1 
+              className="text-2xl font-bold mb-3 md:mb-0"
+              layout
+            >
+              {title}
+            </motion.h1>
+            {actions && (
+              <motion.div 
+                className="w-full md:w-auto"
+                layout
+              >
+                {actions}
+              </motion.div>
+            )}
+          </motion.div>
           
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
         </div>
-      </main>
+      </motion.main>
     </div>
   );
-};
+});
 
 export default AppShell;

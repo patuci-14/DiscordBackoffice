@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import ToggleSwitch from '@/components/ui/toggle-switch';
 import { Plugin } from '@shared/schema';
+import AnimatedCard from '@/components/ui/animated-card';
+import { motion } from 'framer-motion';
 
 interface PluginCardProps {
   plugin: Plugin;
@@ -32,55 +34,87 @@ const PluginCard: React.FC<PluginCardProps> = ({
   };
 
   return (
-    <div className="border border-gray-700 rounded-lg p-4 hover:border-discord-blurple transition-colors">
+    <AnimatedCard 
+      className="p-4 border border-gray-700 hover:border-discord-blurple transition-colors"
+      hoverEffect="scale"
+    >
       <div className="flex justify-between">
         <div className="flex items-center">
-          <div className="h-10 w-10 rounded-lg bg-discord-bg-tertiary overflow-hidden mr-3 flex items-center justify-center">
+          <motion.div 
+            className="h-10 w-10 rounded-lg bg-discord-bg-tertiary overflow-hidden mr-3 flex items-center justify-center"
+            whileHover={{ rotate: 15, scale: 1.1 }}
+            transition={{ type: "spring", stiffness: 300 }}
+          >
             <i className={getPluginIcon()}></i>
-          </div>
+          </motion.div>
           <div>
-            <h4 className="font-medium">{plugin.name}</h4>
-            <p className="text-xs text-discord-text-secondary">{plugin.version}</p>
+            <motion.h4 
+              className="font-medium"
+              initial={{ opacity: 0, x: -5 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {plugin.name}
+            </motion.h4>
+            <motion.p 
+              className="text-xs text-discord-text-secondary"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.8 }}
+              transition={{ delay: 0.1, duration: 0.3 }}
+            >
+              {plugin.version}
+            </motion.p>
           </div>
         </div>
-        <div>
+        <motion.div
+          whileTap={{ scale: 0.95 }}
+        >
           <ToggleSwitch 
-            checked={plugin.enabled} 
+            checked={Boolean(plugin.enabled)} 
             onChange={onToggle} 
           />
-        </div>
+        </motion.div>
       </div>
       
-      <p className="text-sm text-discord-text-secondary mt-3">
-        {plugin.description || 'No description available.'}
-      </p>
+      <motion.p 
+        className="text-sm text-discord-text-secondary mt-3"
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+      >
+        {plugin.description || 'Sem descrição disponível.'}
+      </motion.p>
       
       <div className="mt-4 flex justify-between items-center">
         <span className="text-xs text-discord-text-secondary">
-          By: {plugin.author || 'Unknown'}
+          Por: {plugin.author || 'Desconhecido'}
         </span>
         <div className="flex space-x-2">
           {onSettings && (
-            <Button 
-              variant="link"
-              onClick={onSettings}
-              className="text-xs text-discord-text-secondary hover:text-white"
-            >
-              Settings
-            </Button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                variant="link"
+                onClick={onSettings}
+                className="text-xs text-discord-text-secondary hover:text-white"
+              >
+                Configurações
+              </Button>
+            </motion.div>
           )}
           {onUninstall && (
-            <Button 
-              variant="link"
-              onClick={onUninstall}
-              className="text-xs text-discord-text-secondary hover:text-discord-red"
-            >
-              Uninstall
-            </Button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                variant="link"
+                onClick={onUninstall}
+                className="text-xs text-discord-text-secondary hover:text-discord-red"
+              >
+                Desinstalar
+              </Button>
+            </motion.div>
           )}
         </div>
       </div>
-    </div>
+    </AnimatedCard>
   );
 };
 

@@ -95,7 +95,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       
       if (success && bot) {
         // Wait a bit to ensure the server has processed the login
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Double check the auth status
         const { success: verifySuccess, bot: verifyBot } = await checkAuthStatus();

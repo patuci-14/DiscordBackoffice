@@ -32,7 +32,9 @@ const commandValidator = z.object({
       apiMethod: z.enum(['GET', 'POST']).optional(),
       apiHeaders: z.record(z.string()).optional(),
       apiBody: z.record(z.any()).optional(),
-      parameters: z.record(z.any()).optional()
+      parameters: z.record(z.any()).optional(),
+      usePreviousParameters: z.boolean().optional(),
+      filterByParameters: z.array(z.string()).optional()
     }).optional()
   })).optional(),
   webhookFailureMessage: z.string().nullable().optional(),

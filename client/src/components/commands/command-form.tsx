@@ -54,6 +54,8 @@ interface CommandOption {
     apiMethod?: 'GET' | 'POST';
     apiHeaders?: Record<string, string>;
     apiBody?: Record<string, any>;
+    usePreviousParameters?: boolean;
+    filterByParameters?: string[];
   };
 }
 
@@ -700,6 +702,9 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
                         type="button"
                         onClick={() => removeModalField(index)}
                         className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
+                        variant="ghost"
+                        animationType="scale"
+                        iconLeft="fas fa-times"
                       >
                         Remover
                       </Button>
@@ -802,12 +807,10 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
               onClick={handleDelete}
               disabled={isProcessing}
               className="px-4 py-2 bg-discord-red text-white rounded hover:bg-opacity-80"
+              iconLeft="fas fa-trash-alt"
+              animationType="scale"
+              isLoading={deleteCommandMutation.isPending}
             >
-              {deleteCommandMutation.isPending ? (
-                <i className="fas fa-circle-notch spin mr-2"></i>
-              ) : (
-                <i className="fas fa-trash-alt mr-2"></i>
-              )}
               Excluir
             </Button>
           )}
@@ -818,6 +821,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
             onClick={onClose}
             disabled={isProcessing}
             className="px-4 py-2 bg-discord-bg-tertiary text-discord-text-secondary rounded hover:bg-opacity-80"
+            animationType="bounce"
           >
             Cancelar
           </Button>
@@ -826,8 +830,9 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
             type="submit"
             disabled={isProcessing}
             className="px-4 py-2 bg-discord-blurple text-white rounded hover:bg-opacity-80"
+            animationType="bounce"
+            isLoading={isProcessing}
           >
-            {isProcessing && <i className="fas fa-circle-notch spin mr-2"></i>}
             {isEditing ? 'Atualizar' : 'Criar'} Comando
           </Button>
         </div>
@@ -878,6 +883,9 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
           type="button"
           onClick={() => removeOption(index)}
           className="text-xs py-1 px-2 text-discord-red bg-transparent hover:bg-discord-red hover:bg-opacity-10"
+          variant="ghost"
+          animationType="scale"
+          iconLeft="fas fa-times"
         >
           Remover
         </Button>
@@ -945,6 +953,8 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
               apiMethod: checked ? (option.autocomplete?.apiMethod || 'GET') : 'GET',
               apiHeaders: checked ? (option.autocomplete?.apiHeaders || {}) : {},
               apiBody: checked ? (option.autocomplete?.apiBody || {}) : {},
+              usePreviousParameters: checked ? (option.autocomplete?.usePreviousParameters || false) : false,
+              filterByParameters: checked ? (option.autocomplete?.filterByParameters || []) : [],
             });
           }}
           label="Ativar autocompletar para este parâmetro"
@@ -952,16 +962,25 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
         {option.autocomplete?.enabled && (
           <div className="mt-6 space-y-2 border-discord-blurple">
             <div>
-              <Label className="block text-discord-text-secondary text-xs mb-1">Serviço (Ex: servers, channels, roles, users, external)</Label>
-              <Input
-                value={option.autocomplete.service || ''}
-                onChange={e => updateOption(index, 'autocomplete', {
+              <Label className="block text-discord-text-secondary text-xs mb-1">Serviço</Label>
+              <Select 
+                value={option.autocomplete.service || ''} 
+                onValueChange={value => updateOption(index, 'autocomplete', {
                   ...option.autocomplete,
-                  service: e.target.value
+                  service: value
                 })}
-                placeholder="external"
-                className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
-              />
+              >
+                <SelectTrigger className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded">
+                  <SelectValue placeholder="Selecione o serviço" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="servers">Servidores</SelectItem>
+                  <SelectItem value="channels">Canais</SelectItem>
+                  <SelectItem value="roles">Cargos</SelectItem>
+                  <SelectItem value="users">Usuários</SelectItem>
+                  <SelectItem value="external">API Externa</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="block text-discord-text-secondary text-xs mb-1">URL da API externa (opcional)</Label>
@@ -1023,6 +1042,49 @@ const SortableParameter = ({ option, index, updateOption, removeOption }: {
                 className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
                 rows={2}
               />
+            </div>
+            
+            {/* Filtros baseados em parâmetros anteriores */}
+            <div className="border-t border-gray-600 pt-3 mt-3">
+              <div className="mb-3">
+                <ToggleSwitch
+                  checked={option.autocomplete?.usePreviousParameters || false}
+                  onChange={(checked) => updateOption(index, 'autocomplete', {
+                    ...option.autocomplete,
+                    usePreviousParameters: checked
+                  })}
+                  label="Usar parâmetros anteriores como filtros"
+                />
+                <p className="text-xs text-discord-text-secondary mt-1">
+                  Quando ativado, os valores dos parâmetros já informados serão enviados para a API como filtros.
+                </p>
+              </div>
+              
+              {option.autocomplete?.usePreviousParameters && (
+                <div>
+                  <Label className="block text-discord-text-secondary text-xs mb-1">
+                    Parâmetros para usar como filtros (nomes separados por vírgula)
+                  </Label>
+                  <Input
+                    value={option.autocomplete?.filterByParameters?.join(', ') || ''}
+                    onChange={e => {
+                      const params = e.target.value
+                        .split(',')
+                        .map(p => p.trim())
+                        .filter(p => p.length > 0);
+                      updateOption(index, 'autocomplete', {
+                        ...option.autocomplete,
+                        filterByParameters: params
+                      });
+                    }}
+                    placeholder="server_id, channel_type, user_status"
+                    className="w-full text-sm px-2 py-1 bg-discord-bg-tertiary border border-gray-700 rounded"
+                  />
+                  <p className="text-xs text-discord-text-secondary mt-1">
+                    Deixe vazio para usar todos os parâmetros anteriores. Exemplo: server_id, channel_type
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

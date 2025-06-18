@@ -65,9 +65,12 @@ const Logs: React.FC = () => {
     <Button
       variant="outline"
       onClick={handleExportLogs}
-      className="bg-discord-bg-secondary hover:bg-discord-bg-tertiary px-4 py-2 rounded-md text-sm inline-flex items-center"
+      className="bg-discord-bg-secondary hover:bg-discord-bg-tertiary px-3 py-1 rounded-md text-sm inline-flex items-center"
+      iconLeft="fas fa-file-export"
+      animationType="bounce"
+      isLoading={isLoading}
     >
-      <i className="fas fa-download mr-2"></i> Exportar Logs
+      Exportar
     </Button>
   );
 

@@ -206,15 +206,11 @@ const Config: React.FC = () => {
       onClick={handleSaveConfig}
       disabled={!formChanged || updateBotConfigMutation.isPending}
       className="bg-discord-blurple hover:bg-opacity-80 px-4 py-2 rounded-md text-white text-sm"
+      animationType="bounce"
+      isLoading={updateBotConfigMutation.isPending}
+      iconLeft={!updateBotConfigMutation.isPending ? "fas fa-save" : undefined}
     >
-      {updateBotConfigMutation.isPending ? (
-        <>
-          <i className="fas fa-circle-notch spin mr-2"></i>
-          Saving...
-        </>
-      ) : (
-        'Save Changes'
-      )}
+      {updateBotConfigMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
     </Button>
   );
 

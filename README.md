@@ -125,4 +125,66 @@ docker-compose up
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Autocomplete com Filtros Baseados em Parâmetros Anteriores
+
+O sistema suporta autocomplete inteligente que pode usar valores de parâmetros já informados como filtros para sugestões subsequentes.
+
+### Como Funcionar
+
+1. **Configuração**: Ao criar um comando slash, você pode habilitar autocomplete para qualquer parâmetro
+2. **Filtros**: Marque a opção "Usar parâmetros anteriores como filtros" 
+3. **Seleção**: Especifique quais parâmetros usar como filtros (deixe vazio para usar todos)
+
+### Exemplos de Uso
+
+#### Exemplo 1: Comando de Moderação
+```
+/ban user: [autocomplete: users] reason: [autocomplete: reasons filtrado por user]
+```
+
+- O primeiro parâmetro `user` lista todos os usuários
+- O segundo parâmetro `reason` lista apenas razões relevantes para o usuário selecionado
+
+#### Exemplo 2: Comando de Canais
+```
+/channel server: [autocomplete: servers] channel: [autocomplete: channels filtrado por server]
+```
+
+- O primeiro parâmetro `server` lista todos os servidores
+- O segundo parâmetro `channel` lista apenas canais do servidor selecionado
+
+### Configuração na API Externa
+
+Quando usando uma API externa, os parâmetros anteriores são enviados assim:
+
+**POST Request:**
+```json
+{
+  "input": "texto_digitado",
+  "botId": "bot_id",
+  "previousParameters": {
+    "server_id": "123456789",
+    "user_id": "987654321"
+  },
+  "currentParameter": "channel_name"
+}
+```
+
+**GET Request:**
+```
+/api/autocomplete?input=texto&botId=bot_id&previousParameters={"server_id":"123456789"}&currentParameter=channel_name
+```
+
+### Serviços Internos com Filtros
+
+Os serviços internos (`servers`, `channels`, `roles`, `users`) já incluem filtros inteligentes:
+
+- **Channels**: Filtra por tipo de canal se especificado
+- **Roles**: Filtra por permissões do usuário selecionado
+- **Users**: Filtra por cargo, canal ou status se especificado
+
+### Cache Inteligente
+
+O sistema usa cache baseado no comando, parâmetro e input, mas **não** no contexto dos parâmetros anteriores para permitir filtros dinâmicos. 

@@ -55,8 +55,10 @@ const Commands: React.FC = () => {
     <Button
       onClick={handleCreateCommand}
       className="bg-discord-blurple hover:bg-opacity-80 px-4 py-2 rounded-md text-white text-sm flex items-center"
+      iconLeft="fas fa-plus"
+      animationType="scale"
     >
-    <i className="fas fa-plus mr-2"></i> Criar Comando
+      Criar Comando
     </Button>
   );
 
