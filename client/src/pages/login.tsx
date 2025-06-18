@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
+// Tempo mínimo para mostrar o indicador de carregamento
+const MIN_LOADING_TIME = 1500;
+
 const Login: React.FC = () => {
   const [token, setToken] = useState('');
   const [showToken, setShowToken] = useState(false);
@@ -13,14 +16,25 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { login, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
-
+  const [loginAttempted, setLoginAttempted] = useState(false);
+  
+  // Recuperar token salvo, se existir
   useEffect(() => {
-    console.log('Login component mounted, auth status:', isAuthenticated);
+    const savedToken = sessionStorage.getItem('botToken') || localStorage.getItem('botToken');
+    if (savedToken) {
+      setToken(savedToken);
+    }
+  }, []);
+
+  // Redirecionar se autenticado
+  useEffect(() => {
+    console.log('Login component auth status:', { isAuthenticated, loading, loginAttempted });
+    
     if (!loading && isAuthenticated) {
       console.log('User is authenticated, redirecting to dashboard...');
       window.location.href = '/dashboard';
     }
-  }, [isAuthenticated, loading]);
+  }, [isAuthenticated, loading, loginAttempted]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +44,16 @@ const Login: React.FC = () => {
       return;
     }
     
+    // Evitar múltiplos envios
+    if (isLoading) {
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
+    
+    // Registrar início do tempo de carregamento
+    const startTime = Date.now();
     
     try {
       console.log('Attempting login...');
@@ -40,7 +62,16 @@ const Login: React.FC = () => {
       
       if (success) {
         console.log('Login successful, waiting for state update...');
-        // The useEffect will handle the redirect when isAuthenticated changes
+        setLoginAttempted(true);
+        // O useEffect vai lidar com o redirecionamento quando isAuthenticated mudar
+      } else {
+        // Garantir tempo mínimo de carregamento para evitar flickering
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime < MIN_LOADING_TIME) {
+          await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME - elapsedTime));
+        }
+        
+        setError('Falha na conexão. Verifique seu token e tente novamente.');
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -51,6 +82,12 @@ const Login: React.FC = () => {
         description: 'Não foi possível conectar ao Discord. Verifique seu token e tente novamente.',
       });
     } finally {
+      // Garantir tempo mínimo de carregamento para evitar flickering
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime < MIN_LOADING_TIME) {
+        await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME - elapsedTime));
+      }
+      
       setIsLoading(false);
     }
   };
@@ -66,7 +103,8 @@ const Login: React.FC = () => {
           <div className="inline-block">
             <i className="fas fa-circle-notch spin text-4xl text-discord-blurple"></i>
           </div>
-          <p className="mt-4 text-lg">Carregando...</p>
+          <p className="mt-4 text-lg">Verificando conexão...</p>
+          <p className="mt-2 text-sm text-discord-text-secondary">Aguarde um momento...</p>
         </div>
       </div>
     );
@@ -93,31 +131,33 @@ const Login: React.FC = () => {
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   className="w-full px-4 py-2 pr-[45px] bg-discord-bg-tertiary border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-discord-blurple focus:border-transparent text-white"
+                  disabled={isLoading}
                 />
                 <button 
                   type="button" 
                   style={{ right: '77px' }}
                   onClick={toggleTokenVisibility}
                   className="absolute inset-y-0 right-0 flex items-center text-discord-text-secondary hover:text-white"
+                  disabled={isLoading}
                 >
                   <i className={showToken ? "far fa-eye-slash" : "far fa-eye"}></i>
                 </button>
                 <Button
-                type="submit"
-                style={{ marginLeft: '0.5rem' }}
-                disabled={isLoading}
-                className="w-full bg-discord-blurple hover:bg-opacity-80 text-white font-medium py-2 px-4 rounded-md transition duration-200"
-              >
-                {isLoading ? (
-                  <>
-                    <i className="fas fa-circle-notch spin mr-2"></i>
-                    Conectando...
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-sign-in-alt mr-2"></i></>
-                )}
-              </Button>
+                  type="submit"
+                  style={{ marginLeft: '0.5rem' }}
+                  disabled={isLoading}
+                  className="w-full bg-discord-blurple hover:bg-opacity-80 text-white font-medium py-2 px-4 rounded-md transition duration-200"
+                >
+                  {isLoading ? (
+                    <>
+                      <i className="fas fa-circle-notch spin mr-2"></i>
+                      Conectando...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-sign-in-alt mr-2"></i></>
+                  )}
+                </Button>
               </div>
               <p className="text-xs text-discord-text-secondary mt-1">Seu token é armazenado de forma segura e nunca é exposto ao frontend</p>
             </div>

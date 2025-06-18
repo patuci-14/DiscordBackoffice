@@ -412,6 +412,10 @@ class DiscordBot {
     return this.client.user;
   }
   
+  public getToken(): string | null {
+    return this.token;
+  }
+  
   public getServers() {
     return this.client.guilds.cache.map(guild => ({
       id: guild.id,
