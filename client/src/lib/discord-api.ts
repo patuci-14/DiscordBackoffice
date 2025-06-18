@@ -8,17 +8,20 @@ import {
 // Bot API Functions
 export async function getBotInfo(): Promise<{ success: boolean; config?: BotConfig; error?: string }> {
   try {
-    // Get botId from localStorage
-    const botId = localStorage.getItem('botId');
+    // Get botId from both sessionStorage and localStorage
+    const botId = sessionStorage.getItem('botId') || localStorage.getItem('botId');
     if (!botId) {
+      console.error('Get bot info error: Bot ID not found in storage');
       return { 
         success: false, 
         error: 'Bot ID not found' 
       };
     }
 
+    console.log(`Fetching bot info for botId: ${botId}`);
     const response = await apiRequest('GET', `/api/bot?botId=${botId}`);
     const data = await response.json();
+    console.log('Bot info response:', data);
     return data;
   } catch (error) {
     console.error('Get bot info error:', error);
@@ -31,15 +34,19 @@ export async function getBotInfo(): Promise<{ success: boolean; config?: BotConf
 
 export async function updateBotConfig(config: Partial<BotConfig>): Promise<{ success: boolean; config?: BotConfig; error?: string }> {
   try {
-    const botId = localStorage.getItem('botId');
+    const botId = sessionStorage.getItem('botId') || localStorage.getItem('botId');
     if (!botId) {
+      console.error('Update bot config error: Bot ID not found in storage');
       return { 
         success: false, 
         error: 'Bot ID not found' 
       };
     }
+    
+    console.log(`Updating bot config for botId: ${botId}`, config);
     const response = await apiRequest('PATCH', `/api/bot?botId=${botId}`, config);
     const data = await response.json();
+    console.log('Update bot config response:', data);
     return data;
   } catch (error) {
     console.error('Update bot config error:', error);
@@ -52,15 +59,19 @@ export async function updateBotConfig(config: Partial<BotConfig>): Promise<{ suc
 
 export async function getServers(): Promise<{ success: boolean; servers?: Server[]; error?: string }> {
   try {
-    const botId = localStorage.getItem('botId');
+    const botId = sessionStorage.getItem('botId') || localStorage.getItem('botId');
     if (!botId) {
+      console.error('Get servers error: Bot ID not found in storage');
       return { 
         success: false, 
         error: 'Bot ID not found' 
       };
     }
+    
+    console.log(`Fetching servers for botId: ${botId}`);
     const response = await apiRequest('GET', `/api/bot/servers?botId=${botId}`);
     const data = await response.json();
+    console.log('Servers response:', data);
     return data;
   } catch (error) {
     console.error('Get servers error:', error);
@@ -87,17 +98,20 @@ export async function updateServer(id: number, update: Partial<Server>): Promise
 
 export async function getBotStats(): Promise<{ success: boolean; stats?: BotStat; recentActivity?: RecentActivity[]; error?: string }> {
   try {
-    // Get botId from localStorage
-    const botId = localStorage.getItem('botId');
+    // Get botId from both sessionStorage and localStorage
+    const botId = sessionStorage.getItem('botId') || localStorage.getItem('botId');
     if (!botId) {
+      console.error('Get bot stats error: Bot ID not found in storage');
       return { 
         success: false, 
         error: 'Bot ID not found' 
       };
     }
 
+    console.log(`Fetching bot stats for botId: ${botId}`);
     const response = await apiRequest('GET', `/api/bot/stats?botId=${botId}`);
     const data = await response.json();
+    console.log('Bot stats response:', data);
     return data;
   } catch (error) {
     console.error('Get bot stats error:', error);
@@ -111,20 +125,31 @@ export async function getBotStats(): Promise<{ success: boolean; stats?: BotStat
 // Commands API Functions
 export async function getCommands(): Promise<{ success: boolean; commands?: Command[]; error?: string }> {
   try {
-    const botId = localStorage.getItem('botId');
+    // Tentar recuperar o botId de ambos sessionStorage e localStorage
+    const botId = sessionStorage.getItem('botId') || localStorage.getItem('botId');
+    
     if (!botId) {
+      console.error('Get commands error: Bot ID not found in storage');
       return { 
         success: false, 
         error: 'Bot ID not found' 
       };
     }
+    
+    // Registrar a requisição para debug
+    console.log(`Fetching commands for botId: ${botId}`);
+    
     const response = await apiRequest('GET', `/api/commands?botId=${botId}`);
     const data = await response.json();
+    
+    // Registrar a resposta para debug
+    console.log(`Commands response:`, data);
+    
     return data;
   } catch (error) {
     console.error('Get commands error:', error);
     return { 
-      success: false, 
+      success: false,
       error: error instanceof Error ? error.message : 'An unknown error occurred'
     };
   }

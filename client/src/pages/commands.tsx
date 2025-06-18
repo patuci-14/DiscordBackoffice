@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import AppShell from '@/components/layout/app-shell';
 import CommandList from '@/components/commands/command-list';
 import CommandForm from '@/components/commands/command-form';
@@ -15,18 +15,38 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from 'framer-motion';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 const Commands: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingCommand, setEditingCommand] = useState<number | null>(null);
-  const { botInfo } = useAuth();
+  const { botInfo, checkStatus } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/commands', botInfo?.id],
+  // Usar o botId como parte da chave de consulta
+  const botId = botInfo?.id || sessionStorage.getItem('botId') || localStorage.getItem('botId');
+  
+  const { data, isLoading, error, refetch, isError } = useQuery({
+    queryKey: ['/api/commands', botId],
     queryFn: () => getCommands(),
-    retry: false,
-    enabled: !!botInfo?.id // Só busca comandos quando há botId
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    enabled: !!botId // Só busca comandos quando há botId
   });
+
+  // Efeito para verificar o status de autenticação se ocorrer um erro
+  useEffect(() => {
+    if (isError) {
+      console.error('Error loading commands:', error);
+      // Verificar se o erro é de autenticação
+      if (error instanceof Error && error.message.includes('401')) {
+        console.log('Authentication error detected, checking status...');
+        checkStatus();
+      }
+    }
+  }, [isError, error, checkStatus]);
 
   const handleCreateCommand = () => {
     setEditingCommand(null);
@@ -41,6 +61,29 @@ const Commands: React.FC = () => {
   const handleFormClose = () => {
     setShowCreateForm(false);
     setEditingCommand(null);
+  };
+
+  const handleRefresh = async () => {
+    try {
+      toast({
+        title: "Atualizando comandos",
+        description: "Buscando dados mais recentes...",
+      });
+      
+      await refetch();
+      
+      toast({
+        title: "Comandos atualizados",
+        description: "Lista de comandos atualizada com sucesso",
+      });
+    } catch (refreshError) {
+      console.error('Error refreshing commands:', refreshError);
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar a lista de comandos",
+        variant: "destructive",
+      });
+    }
   };
 
   const defaultCommand: InsertCommand = {
@@ -59,18 +102,47 @@ const Commands: React.FC = () => {
   };
   
   const createButton = (
-    <Button
-      onClick={handleCreateCommand}
-      className="bg-discord-blurple hover:bg-opacity-80 px-4 py-2 rounded-md text-white text-sm flex items-center"
-      iconLeft="fas fa-plus"
-      animationType="scale"
-    >
-      Criar Comando
-    </Button>
+    <div className="flex space-x-2">
+      <Button
+        onClick={handleRefresh}
+        className="bg-discord-bg-tertiary hover:bg-opacity-80 px-3 py-2 rounded-md text-white text-sm flex items-center"
+        iconLeft="fas fa-sync-alt"
+        animationType="scale"
+      >
+        Atualizar
+      </Button>
+      
+      <Button
+        onClick={handleCreateCommand}
+        className="bg-discord-blurple hover:bg-opacity-80 px-4 py-2 rounded-md text-white text-sm flex items-center"
+        iconLeft="fas fa-plus"
+        animationType="scale"
+      >
+        Criar Comando
+      </Button>
+    </div>
   );
 
   return (
     <AppShell title="Comandos Personalizados" actions={createButton}>
+      {/* Mostrar alerta de erro se houver problemas */}
+      {isError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Erro ao carregar comandos</AlertTitle>
+          <AlertDescription>
+            {error instanceof Error ? error.message : 'Ocorreu um erro ao carregar os comandos.'}
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              className="mt-2"
+              animationType="scale"
+            >
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {/* Command List */}
       <CommandList 
         isLoading={isLoading} 

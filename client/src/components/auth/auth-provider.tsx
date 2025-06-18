@@ -24,8 +24,8 @@ const AuthContext = createContext<AuthContextType>({
   checkStatus: async () => {},
 });
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+const MAX_RETRIES = 5;
+const RETRY_DELAY = 2000;
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -33,13 +33,19 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [botInfo, setBotInfo] = useState<AuthContextType['botInfo']>(null);
   const { toast } = useToast();
 
-  // Check authentication status on mount with retry logic
   useEffect(() => {
     let retryCount = 0;
     let timeoutId: NodeJS.Timeout;
 
     const checkAuth = async () => {
       try {
+        const token = sessionStorage.getItem('botToken') || localStorage.getItem('botToken');
+        
+        if (token && !isAuthenticated) {
+          console.log('Token encontrado, tentando reconectar...');
+          await loginWithToken(token);
+        }
+        
         const { success, bot } = await checkAuthStatus();
         console.log('Auth check result:', { success, bot, retryCount });
         
@@ -50,6 +56,12 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             id: bot.id,
             avatar: bot.avatar,
           });
+          
+          if (bot.id) {
+            localStorage.setItem('botId', bot.id);
+            sessionStorage.setItem('botId', bot.id);
+          }
+          
           setLoading(false);
         } else if (retryCount < MAX_RETRIES) {
           retryCount++;
@@ -59,6 +71,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           setIsAuthenticated(false);
           setBotInfo(null);
           setLoading(false);
+          
+          localStorage.removeItem('botId');
+          sessionStorage.removeItem('botId');
+          localStorage.removeItem('botToken');
+          sessionStorage.removeItem('botToken');
         }
       } catch (error) {
         console.error('Auth check error:', error);
@@ -70,6 +87,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           setIsAuthenticated(false);
           setBotInfo(null);
           setLoading(false);
+          
+          localStorage.removeItem('botId');
+          sessionStorage.removeItem('botId');
+          localStorage.removeItem('botToken');
+          sessionStorage.removeItem('botToken');
         }
       }
     };
@@ -87,17 +109,15 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     console.log('Starting login process...');
     setLoading(true);
     try {
-      // Store token first
       localStorage.setItem('botToken', token);
+      sessionStorage.setItem('botToken', token);
       
       const { success, bot, error } = await loginWithToken(token);
       console.log('Login response:', { success, bot, error });
       
       if (success && bot) {
-        // Wait a bit to ensure the server has processed the login
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Double check the auth status
         const { success: verifySuccess, bot: verifyBot } = await checkAuthStatus();
         console.log('Verification after login:', { verifySuccess, verifyBot });
         
@@ -108,7 +128,12 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             id: verifyBot.id,
             avatar: verifyBot.avatar,
           });
-          localStorage.setItem('botId', verifyBot.id);
+          
+          if (verifyBot.id) {
+            localStorage.setItem('botId', verifyBot.id);
+            sessionStorage.setItem('botId', verifyBot.id);
+          }
+          
           toast({
             title: 'Connected successfully',
             description: `Bot ${verifyBot.name} is now connected.`,
@@ -121,7 +146,9 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setIsAuthenticated(false);
         setBotInfo(null);
         localStorage.removeItem('botId');
+        sessionStorage.removeItem('botId');
         localStorage.removeItem('botToken');
+        sessionStorage.removeItem('botToken');
         toast({
           title: 'Connection failed',
           description: error || 'Invalid token or connection failed.',
@@ -134,7 +161,9 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setIsAuthenticated(false);
       setBotInfo(null);
       localStorage.removeItem('botId');
+      sessionStorage.removeItem('botId');
       localStorage.removeItem('botToken');
+      sessionStorage.removeItem('botToken');
       toast({
         title: 'Connection error',
         description: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -155,7 +184,9 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setIsAuthenticated(false);
         setBotInfo(null);
         localStorage.removeItem('botId');
+        sessionStorage.removeItem('botId');
         localStorage.removeItem('botToken');
+        sessionStorage.removeItem('botToken');
         toast({
           title: 'Disconnected',
           description: 'Bot has been disconnected successfully.',
@@ -190,18 +221,21 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           id: bot.id,
           avatar: bot.avatar,
         });
-        if (bot.id && !localStorage.getItem('botId')) {
+        if (bot.id) {
           localStorage.setItem('botId', bot.id);
+          sessionStorage.setItem('botId', bot.id);
         }
       } else {
         setBotInfo(null);
         localStorage.removeItem('botId');
+        sessionStorage.removeItem('botId');
       }
     } catch (error) {
       console.error('Status check error:', error);
       setIsAuthenticated(false);
       setBotInfo(null);
       localStorage.removeItem('botId');
+      sessionStorage.removeItem('botId');
     } finally {
       setLoading(false);
     }
