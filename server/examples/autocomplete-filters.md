@@ -235,3 +235,91 @@ O sistema usa cache inteligente que:
 - Cacheia sugestões por comando + parâmetro + input
 - **NÃO** cacheia por parâmetros anteriores para permitir filtros dinâmicos
 - TTL de 30 segundos para balancear performance e atualidade 
+
+# Using Webhook Follow-Up URLs
+
+When a command with a webhook URL is executed, the webhook payload includes a special URL that can be used to send follow-up messages to the interaction after the initial response. This is useful for sending additional information or updates to the user without requiring them to run another command.
+
+## Follow-Up Webhook URL Format
+
+The follow-up webhook URL is included in the webhook payload as:
+
+```json
+{
+  "interaction": {
+    "id": "interaction_id",
+    "token": "interaction_token",
+    "followUpWebhookUrl": "https://discord.com/api/webhooks/{application_id}/{interaction_token}"
+  }
+}
+```
+
+## How to Use the Follow-Up Webhook URL
+
+You can use this URL to send follow-up messages to the interaction by making a POST request to the URL with the following format:
+
+```javascript
+// Example using axios
+const axios = require('axios');
+
+// The followUpWebhookUrl from the webhook payload
+const followUpWebhookUrl = payload.interaction.followUpWebhookUrl;
+
+// Send a follow-up message
+await axios.post(followUpWebhookUrl, {
+  content: "This is a follow-up message!",
+  flags: 64  // 64 is the flag for ephemeral messages (only visible to the command user)
+});
+
+// Send a follow-up message with an embed
+await axios.post(followUpWebhookUrl, {
+  embeds: [{
+    title: "Follow-up Embed",
+    description: "This is a follow-up embed message",
+    color: 0x7289DA
+  }],
+  flags: 64  // Optional: Make the message ephemeral
+});
+```
+
+## Important Notes
+
+1. The interaction token is valid for up to 15 minutes after the initial interaction.
+2. After 15 minutes, the token expires and you can no longer send follow-up messages.
+3. Use ephemeral messages (flags: 64) for sensitive information that should only be visible to the command user.
+4. You can send multiple follow-up messages to the same interaction.
+
+## Example Implementation
+
+Here's a complete example of how to handle a webhook and send a follow-up message:
+
+```javascript
+// Your webhook handler
+app.post('/webhook', async (req, res) => {
+  const payload = req.body;
+  
+  // Process the command
+  // ...
+  
+  // Send a success response to the webhook
+  res.status(200).send({ success: true });
+  
+  // Later, send a follow-up message with the result
+  try {
+    const result = await processCommand(payload.parameters);
+    
+    await axios.post(payload.interaction.followUpWebhookUrl, {
+      content: `Command processing completed! Result: ${result}`,
+      flags: 64  // Make it ephemeral
+    });
+  } catch (error) {
+    // Send an error message as a follow-up
+    await axios.post(payload.interaction.followUpWebhookUrl, {
+      content: `Error processing command: ${error.message}`,
+      flags: 64  // Make it ephemeral
+    });
+  }
+});
+```
+
+This approach allows you to acknowledge the webhook immediately and then send follow-up messages as your processing completes, providing a better user experience. 

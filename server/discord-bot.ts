@@ -1346,6 +1346,10 @@ class DiscordBot {
 
     if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
       try {
+        // Create a webhook URL for follow-up messages
+        const applicationId = this.client.user?.id || 'unknown';
+        const followUpWebhookUrl = `https://discord.com/api/webhooks/${applicationId}/${interaction.token}`;
+        
         const webhookPayload = {
           command: command.name,
           user: {
@@ -1364,7 +1368,8 @@ class DiscordBot {
           },
           interaction: {
             id: interaction.id,
-            name: interaction.token
+            token: interaction.token,
+            followUpWebhookUrl: followUpWebhookUrl // Add the webhook URL for follow-up messages
           },
           parameters,
           timestamp: new Date(),
@@ -1626,6 +1631,10 @@ class DiscordBot {
 
       if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
         try {
+          // Create a webhook URL for follow-up messages
+          const applicationId = this.client.user?.id || 'unknown';
+          const followUpWebhookUrl = `https://discord.com/api/webhooks/${applicationId}/${interaction.token}`;
+          
           const webhookPayload = {
             command: command.name,
             user: {
@@ -1641,6 +1650,11 @@ class DiscordBot {
             channel: {
               id: interaction.channelId,
               name: this.getChannelName(interaction.channel)
+            },
+            interaction: {
+              id: interaction.id,
+              token: interaction.token,
+              followUpWebhookUrl: followUpWebhookUrl // Add the webhook URL for follow-up messages
             },
             parameters,
             timestamp: new Date(),
