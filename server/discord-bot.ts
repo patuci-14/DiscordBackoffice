@@ -1151,6 +1151,9 @@ class DiscordBot {
             confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
           }
         });
+        
+        // Replace any remaining parameter placeholders with empty string
+        confirmationMessage = confirmationMessage.replace(/{param:[^}]+}/g, '');
 
         // Format parameters for {params} placeholder
         if (confirmationMessage.includes('{params}')) {
@@ -1310,6 +1313,9 @@ class DiscordBot {
         response = response.replace(`{${optionName}}`, String(optionValue));
       });
     }
+    
+    // Replace any remaining parameter placeholders with empty string
+    response = response.replace(/{[^}]+}/g, '');
     
     // Replace standard placeholders with actual values
     response = response
@@ -1746,6 +1752,9 @@ class DiscordBot {
         Object.entries(parameters).forEach(([key, value]) => {
           confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
         });
+        
+        // Replace any remaining parameter placeholders with empty string
+        confirmationMessage = confirmationMessage.replace(/{param:[^}]+}/g, '');
         
         // Format parameters for {params} placeholder
         if (confirmationMessage.includes('{params}')) {
