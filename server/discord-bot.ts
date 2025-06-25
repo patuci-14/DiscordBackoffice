@@ -1136,19 +1136,19 @@ class DiscordBot {
           if (typeof value === 'object' && value !== null && 'url' in value) {
             // Replace {param:key} with formatted attachment info
             confirmationMessage = confirmationMessage.replace(
-              `{param:${key}}`, 
+              new RegExp(`\\{param:${key}\\}`, 'g'), 
               `${value.name} (${value.extension.toUpperCase()}): ${value.url}`
             );
             
             // Add support for specific file properties
             confirmationMessage = confirmationMessage
-              .replace(`{param:${key}.name}`, value.name)
-              .replace(`{param:${key}.extension}`, value.extension.toUpperCase())
-              .replace(`{param:${key}.url}`, value.url)
-              .replace(`{param:${key}.size}`, `${Math.round(value.size / 1024)} KB`);
+              .replace(new RegExp(`\\{param:${key}\\.name\\}`, 'g'), value.name)
+              .replace(new RegExp(`\\{param:${key}\\.extension\\}`, 'g'), value.extension.toUpperCase())
+              .replace(new RegExp(`\\{param:${key}\\.url\\}`, 'g'), value.url)
+              .replace(new RegExp(`\\{param:${key}\\.size\\}`, 'g'), `${Math.round(value.size / 1024)} KB`);
           } else {
             // Regular parameter replacement
-            confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
+            confirmationMessage = confirmationMessage.replace(new RegExp(`\\{param:${key}\\}`, 'g'), String(value));
           }
         });
         
@@ -1305,12 +1305,42 @@ class DiscordBot {
         
         // Handle attachment object
         if (typeof optionValue === 'object' && optionValue !== null && 'url' in optionValue) {
-          // Format attachment information
-          optionValue = `${optionValue.name} (${optionValue.extension.toUpperCase()}): ${optionValue.url}`;
+          // Format attachment information for the main placeholder
+          const formattedValue = `${optionValue.name} (${optionValue.extension.toUpperCase()}): ${optionValue.url}`;
+          response = response.replace(new RegExp(`\\{${optionName}\\}`, 'g'), formattedValue);
+          
+          // Handle specific file properties
+          response = response
+            .replace(new RegExp(`\\{${optionName}\\.name\\}`, 'g'), optionValue.name)
+            .replace(new RegExp(`\\{${optionName}\\.extension\\}`, 'g'), optionValue.extension.toUpperCase())
+            .replace(new RegExp(`\\{${optionName}\\.url\\}`, 'g'), optionValue.url)
+            .replace(new RegExp(`\\{${optionName}\\.size\\}`, 'g'), `${Math.round(optionValue.size / 1024)} KB`);
+        } 
+        // Handle JSON string attachment
+        else if (typeof optionValue === 'string' && optionValue.startsWith('{') && optionValue.includes('url')) {
+          try {
+            const fileData = JSON.parse(optionValue);
+            if (fileData && fileData.url) {
+              // Format attachment information for the main placeholder
+              const formattedValue = `${fileData.name} (${fileData.extension.toUpperCase()}): ${fileData.url}`;
+              response = response.replace(new RegExp(`\\{${optionName}\\}`, 'g'), formattedValue);
+              
+              // Handle specific file properties
+              response = response
+                .replace(new RegExp(`\\{${optionName}\\.name\\}`, 'g'), fileData.name)
+                .replace(new RegExp(`\\{${optionName}\\.extension\\}`, 'g'), fileData.extension.toUpperCase())
+                .replace(new RegExp(`\\{${optionName}\\.url\\}`, 'g'), fileData.url)
+                .replace(new RegExp(`\\{${optionName}\\.size\\}`, 'g'), `${Math.round(fileData.size / 1024)} KB`);
+            }
+          } catch (e) {
+            // Not valid JSON, treat as regular string
+            response = response.replace(new RegExp(`\\{${optionName}\\}`, 'g'), String(optionValue));
+          }
+        } 
+        else {
+          // Regular parameter replacement
+          response = response.replace(new RegExp(`\\{${optionName}\\}`, 'g'), String(optionValue));
         }
-        
-        // Replace the placeholder in the response
-        response = response.replace(`{${optionName}}`, String(optionValue));
       });
     }
     
@@ -1750,7 +1780,32 @@ class DiscordBot {
         
         // Replace parameter placeholders
         Object.entries(parameters).forEach(([key, value]) => {
-          confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
+          // Handle attachment object if it's JSON string
+          if (typeof value === 'string' && value.startsWith('{') && value.includes('url')) {
+            try {
+              const fileData = JSON.parse(value);
+              if (fileData && fileData.url) {
+                // Replace {param:key} with formatted attachment info
+                confirmationMessage = confirmationMessage.replace(
+                  new RegExp(`\\{param:${key}\\}`, 'g'), 
+                  `${fileData.name} (${fileData.extension.toUpperCase()}): ${fileData.url}`
+                );
+                
+                // Add support for specific file properties
+                confirmationMessage = confirmationMessage
+                  .replace(new RegExp(`\\{param:${key}\\.name\\}`, 'g'), fileData.name)
+                  .replace(new RegExp(`\\{param:${key}\\.extension\\}`, 'g'), fileData.extension.toUpperCase())
+                  .replace(new RegExp(`\\{param:${key}\\.url\\}`, 'g'), fileData.url)
+                  .replace(new RegExp(`\\{param:${key}\\.size\\}`, 'g'), `${Math.round(fileData.size / 1024)} KB`);
+                return;
+              }
+            } catch (e) {
+              // Not valid JSON, treat as regular string
+            }
+          }
+          
+          // Regular parameter replacement
+          confirmationMessage = confirmationMessage.replace(new RegExp(`\\{param:${key}\\}`, 'g'), String(value));
         });
         
         // Replace any remaining parameter placeholders with empty string
