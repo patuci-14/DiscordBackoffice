@@ -145,16 +145,16 @@ const LogTable: React.FC<LogTableProps> = ({ logs, isLoading, pagination, onPage
                               <i className="fas fa-eye"></i>
                             </Button>
                           </DialogTrigger>
-                          <DialogContent>
+                          <DialogContent className="max-w-[90vw] md:max-w-[70vw] overflow-hidden">
                             <DialogHeader>
                               <DialogTitle>Command Parameters</DialogTitle>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
-                              <pre className="whitespace-pre-wrap bg-discord-bg-tertiary p-4 rounded-md">
+                              <pre className="whitespace-pre-wrap bg-discord-bg-tertiary p-4 rounded-md overflow-x-auto max-w-full break-words">
                                 {formatParameters(log.parameters as Record<string, any> | null | undefined)}
                               </pre>
                               {log.callbackError && (
-                                <div className="text-discord-red">
+                                <div className="text-discord-red overflow-x-auto">
                                   <strong>Error:</strong> {log.callbackError}
                                 </div>
                               )}

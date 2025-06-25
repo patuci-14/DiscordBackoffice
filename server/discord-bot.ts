@@ -127,246 +127,20 @@ class DiscordBot {
     });
     
     this.client.on(Events.MessageCreate, async (message) => {
-      // Ignore messages from bots and non-text channels
-      if (message.author.bot || !message.guild) return;
-      
-      const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
-      if (!botConfig) return;
-      
-      const prefix = botConfig.prefix || '!';
-      
-      // Check if message starts with the prefix
-      if (!message.content.startsWith(prefix)) return;
-      
-      // Check if the bot is enabled for this server
-      const server = await storage.getServerByServerId(message.guild.id);
-      if (!server || !server.enabled) return;
-      
-      // Parse the command name
-      const args = message.content.slice(prefix.length).trim().split(/ +/);
-      const commandName = args.shift()?.toLowerCase();
-      
-      if (!commandName) return;
-      
-      // Find the command
-      const command = this.commands.get(commandName) || 
-                      Array.from(this.commands.values()).find(cmd => 
-                        cmd.name.toLowerCase() === commandName
-                      );
-      
-      if (!command || !command.active) return;
-      
-      // Check permissions
-      if (command.requiredPermission !== 'everyone') {
-        let hasPermission = false;
-        
-        if (command.requiredPermission === 'admin' && message.member?.permissions.has('Administrator')) {
-          hasPermission = true;
-        } else if (command.requiredPermission === 'moderator' && 
-                 (message.member?.permissions.has('ManageMessages') || 
-                  message.member?.permissions.has('Administrator'))) {
-          hasPermission = true;
-        } else if (command.requiredPermission === 'server-owner' && 
-                 message.guild.ownerId === message.author.id) {
-          hasPermission = true;
-        }
-        
-        if (!hasPermission) {
-          // Log permission denied
-          await this.createCommandLogEntry(
-            message.guild.id,
-            message.guild.name,
-            message.channel.id,
-            this.getChannelName(message.channel),
-            message.author.id,
-            message.author.tag,
-            command.name,
-            'Permissão Negada',
-            {},
-            undefined,
-            undefined,
-            new Date()
-          );
-          
-          return message.reply('You do not have permission to use this command.');
-        }
-      }
-      
-      try {
-        // Process the command
-        let response = command.response;
-        
-        // Replace placeholders with actual values
-        response = response
-          .replace('{user}', message.author.username)
-          .replace('{server}', message.guild.name)
-          .replace('{ping}', this.client.ws.ping.toString());
-        
-        // Log command data for debugging
-        console.log(`Command executed: ${command.name}, type: ${command.type}, webhookUrl: ${command.webhookUrl || 'none'}`);
-        
-        // Send the response based on command type
-        if (command.type === 'embed') {
-          const embed = new EmbedBuilder()
-            .setColor('#7289DA')
-            .setDescription(response);
-            
-          await message.channel.send({ embeds: [embed] });
-        } else {
-          await message.channel.send(response);
-        }
-        
-        // Initialize webhook status variables
-        let webhookStatus: 'Sucesso' | 'Erro' | 'Permissão Negada' | undefined = undefined;
-        let webhookErrorMessage = undefined;
-
-        if (command.webhookUrl && command.webhookUrl.trim() && /^https?:\/\/.+/i.test(command.webhookUrl)) {
-          console.log(`Attempting to call webhook for ${command.name} to URL: ${command.webhookUrl}`);
-          
-          try {
-            // Prepare webhook payload with rich context information
-            const webhookPayload = {
-              command: command.name,
-              user: {
-                id: message.author.id,
-                username: message.author.username,
-                discriminator: message.author.discriminator,
-                avatarUrl: message.author.displayAvatarURL()
-              },
-              server: {
-                id: message.guild.id,
-                name: message.guild.name,
-              },
-              channel: {
-                id: message.channel.id,
-                name: this.getChannelName(message.channel)
-              },
-              message: {
-                content: message.content,
-                id: message.id,
-                timestamp: message.createdAt
-              },
-              args: args || [],
-              timestamp: new Date()
-            };
-
-            // Send webhook request with appropriate timeout and retry
-            const webhookResponse = await axios.post(command.webhookUrl, webhookPayload, {
-              headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': 'Discord-Bot-Manager'
-              },
-              timeout: 5000,
-              validateStatus: status => status < 500
-            });
-            
-            if (webhookResponse.status >= 200 && webhookResponse.status < 300) {
-              console.log(`Webhook triggered successfully for command ${command.name}`);
-            } else {
-              console.warn(`Webhook for command ${command.name} returned status: ${webhookResponse.status}`);
-              webhookStatus = 'Erro';
-              webhookErrorMessage = `HTTP ${webhookResponse.status}`;
-              if (command.webhookFailureMessage) {
-                await message.channel.send(command.webhookFailureMessage);
-              }
-            }
-          } catch (error) {
-            const errorObj = error instanceof Error ? error : new Error('Unknown error');
-            console.error(`Error sending webhook for command ${command.name}:`, errorObj.message);
-            webhookStatus = 'Erro';
-            webhookErrorMessage = errorObj.message;
-            if (command.webhookFailureMessage) {
-              await message.channel.send(command.webhookFailureMessage);
-            }
-          }
-        } else if (command.webhookUrl) {
-          console.warn(`Invalid webhook URL format for command ${command.name}: ${command.webhookUrl}`);
-        }
-        
-        // Delete the user's message if specified
-        if (command.deleteUserMessage) {
-          await message.delete().catch(() => {
-            // Ignore deletion errors
-          });
-        }
-        
-        // Log command usage once with all relevant information
-        await this.createCommandLogEntry(
-          message.guild.id,
-          message.guild.name,
-          message.channel.id,
-          this.getChannelName(message.channel),
-          message.author.id,
-          message.author.tag,
-          command.name,
-          'Sucesso',
-          {},
-          webhookStatus,
-          webhookErrorMessage,
-          new Date()
-        );
-      } catch (error) {
-        console.error(`Error executing command ${command.name}:`, error);
-        
-        // Log command failure
-        await this.createCommandLogEntry(
-          message.guild.id,
-          message.guild.name,
-          message.channel.id,
-          this.getChannelName(message.channel),
-          message.author.id,
-          message.author.tag,
-          command.name,
-          'Erro',
-          {},
-          undefined,
-          String(error),
-          new Date()
-        );
-        
-        message.reply('There was an error executing that command.');
-      }
-    });
-    
-    this.client.on(Events.GuildCreate, async (guild) => {
-      // Add new server to database
-      await this.addServer(guild.id, guild.name, guild.iconURL() || undefined, guild.memberCount);
-    });
-    
-    this.client.on(Events.GuildDelete, async (guild) => {
-      // Remove server from database
-      const server = await storage.getServerByServerId(guild.id);
-      if (server) {
-        await storage.deleteServer(server.id);
-      }
-    });
-
-    // Eventos de membros
-    this.client.on(Events.GuildMemberAdd, async (member: GuildMember) => {
-      await handleMemberJoin(member);
-    });
-
-    this.client.on(Events.GuildMemberRemove, async (member: GuildMember | PartialGuildMember) => {
-      if (member instanceof GuildMember) {
-        await handleMemberLeave(member);
-      }
-    });
-
-    this.client.on(Events.GuildMemberUpdate, async (oldMember: GuildMember | PartialGuildMember, newMember: GuildMember | PartialGuildMember) => {
-      if (oldMember instanceof GuildMember && newMember instanceof GuildMember) {
-        await handleMemberUpdate(oldMember, newMember);
-      }
-    });
-
-    // Eventos de mensagens
-    this.client.on(Events.MessageCreate, async (message) => {
       // Ignorar mensagens de bots
       if (message.author.bot) return;
 
       // Verificar menções ao bot
       const botConfig = await storage.getBotConfig(this.client.user?.id || 'unknown');
+      
+      // Verificar se o bot deve responder a menções e se a mensagem menciona o bot diretamente
       if (botConfig?.respondToMentions && message.mentions.has(this.client.user!)) {
         await message.reply('Olá! Como posso ajudar?');
+      }
+      
+      // Não responder a @everyone se a configuração de responder a menções estiver desativada
+      if (!botConfig?.respondToMentions && message.mentions.everyone) {
+        return;
       }
 
       // Auto-moderação
@@ -1587,6 +1361,10 @@ class DiscordBot {
           channel: {
             id: interaction.channelId,
             name: this.getChannelName(interaction.channel)
+          },
+          interaction: {
+            id: interaction.id,
+            name: interaction.token
           },
           parameters,
           timestamp: new Date(),
