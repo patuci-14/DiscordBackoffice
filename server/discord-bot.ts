@@ -1134,10 +1134,10 @@ class DiscordBot {
         Object.entries(parameters).forEach(([key, value]) => {
           // Handle attachment object
           if (typeof value === 'object' && value !== null && 'url' in value) {
-            // Replace {param:key} with formatted attachment info
+            // Replace {param:key} with formatted attachment info - just name and extension
             confirmationMessage = confirmationMessage.replace(
               `{param:${key}}`, 
-              `${value.name} (${value.extension.toUpperCase()}): ${value.url}`
+              `${value.name} (${value.extension.toUpperCase()})`
             );
             
             // Add support for specific file properties
@@ -1146,6 +1146,31 @@ class DiscordBot {
               .replace(`{param:${key}.extension}`, value.extension.toUpperCase())
               .replace(`{param:${key}.url}`, value.url)
               .replace(`{param:${key}.size}`, `${Math.round(value.size / 1024)} KB`);
+          } else if (typeof value === 'string' && value.startsWith('{"url":')) {
+            // Handle string-serialized attachment object
+            try {
+              const attachmentData = JSON.parse(value);
+              if (attachmentData.name && attachmentData.extension) {
+                // Replace {param:key} with formatted attachment info - just name and extension
+                confirmationMessage = confirmationMessage.replace(
+                  `{param:${key}}`,
+                  `${attachmentData.name} (${attachmentData.extension.toUpperCase()})`
+                );
+                
+                // Add support for specific file properties
+                confirmationMessage = confirmationMessage
+                  .replace(`{param:${key}.name}`, attachmentData.name)
+                  .replace(`{param:${key}.extension}`, attachmentData.extension.toUpperCase())
+                  .replace(`{param:${key}.url}`, attachmentData.url)
+                  .replace(`{param:${key}.size}`, `${Math.round(attachmentData.size / 1024)} KB`);
+              } else {
+                // Regular parameter replacement if attachment data is incomplete
+                confirmationMessage = confirmationMessage.replace(`{param:${key}}`, value);
+              }
+            } catch (e) {
+              // Regular parameter replacement if JSON parsing fails
+              confirmationMessage = confirmationMessage.replace(`{param:${key}}`, value);
+            }
           } else {
             // Regular parameter replacement
             confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
@@ -1168,6 +1193,21 @@ class DiscordBot {
             .join('\n');
           confirmationMessage = confirmationMessage.replace('{params}', paramsText);
         }
+        
+        // Handle attachment parameters - replace any JSON string representation with formatted text
+        Object.entries(parameters).forEach(([key, value]) => {
+          if (typeof value === 'string' && value.startsWith('{"url":')) {
+            try {
+              const attachmentData = JSON.parse(value);
+              if (attachmentData.name && attachmentData.extension) {
+                parameters[key] = `${attachmentData.name} (${attachmentData.extension.toUpperCase()})`;
+              }
+            } catch (e) {
+              // If parsing fails, keep the original value
+              console.log(`Failed to parse attachment JSON for ${key}:`, e);
+            }
+          }
+        });
 
         // Replace standard placeholders
         confirmationMessage = confirmationMessage
@@ -1750,7 +1790,25 @@ class DiscordBot {
         
         // Replace parameter placeholders
         Object.entries(parameters).forEach(([key, value]) => {
-          confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
+          if (typeof value === 'string' && value.startsWith('{"url":')) {
+            // Handle string-serialized attachment object
+            try {
+              const attachmentData = JSON.parse(value);
+              if (attachmentData.name && attachmentData.extension) {
+                // Replace {param:key} with formatted attachment info - just name and extension
+                confirmationMessage = confirmationMessage.replace(
+                  `{param:${key}}`,
+                  `${attachmentData.name} (${attachmentData.extension.toUpperCase()})`
+                );
+              } else {
+                confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
+              }
+            } catch (e) {
+              confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
+            }
+          } else {
+            confirmationMessage = confirmationMessage.replace(`{param:${key}}`, String(value));
+          }
         });
         
         // Replace any remaining parameter placeholders with empty string
