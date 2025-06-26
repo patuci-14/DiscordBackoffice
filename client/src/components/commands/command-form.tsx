@@ -379,8 +379,8 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   };
 
   return (
-    <div className="command-form">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="command-form relative">
+      <form id="command-form" onSubmit={handleSubmit} className="space-y-6 pb-20">
         {/* Basic Command Information */}
         <div className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -800,46 +800,50 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
             </div>
           )}
           
-          {/* Form Actions */}
-          <div className="flex flex-wrap justify-end gap-2 mt-6">
-            {isEditing && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={isProcessing}
-                className="px-4 py-2 bg-discord-red text-white rounded hover:bg-opacity-80"
-                iconLeft="fas fa-trash-alt"
-                animationType="scale"
-                isLoading={deleteCommandMutation.isPending}
-              >
-                Excluir
-              </Button>
-            )}
-            
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isProcessing}
-              className="px-4 py-2 bg-discord-bg-tertiary text-discord-text-secondary rounded hover:bg-opacity-80"
-              animationType="bounce"
-            >
-              Cancelar
-            </Button>
-            
-            <Button
-              type="submit"
-              disabled={isProcessing}
-              className="px-4 py-2 bg-discord-blurple text-white rounded hover:bg-opacity-80"
-              animationType="bounce"
-              isLoading={isProcessing}
-            >
-              {isEditing ? 'Atualizar' : 'Criar'} Comando
-            </Button>
-          </div>
         </div>
       </form>
+      
+      {/* Fixed Form Actions */}
+      <div className="fixed bottom-0 left-0 right-0 bg-discord-bg-primary border-t border-gray-700 p-4 shadow-lg z-10">
+        <div className="container mx-auto flex flex-wrap justify-end gap-2">
+          {isEditing && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isProcessing}
+              className="px-4 py-2 bg-discord-red text-white rounded hover:bg-opacity-80"
+              iconLeft="fas fa-trash-alt"
+              animationType="scale"
+              isLoading={deleteCommandMutation.isPending}
+            >
+              Excluir
+            </Button>
+          )}
+          
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={isProcessing}
+            className="px-4 py-2 bg-discord-bg-tertiary text-discord-text-secondary rounded hover:bg-opacity-80"
+            animationType="bounce"
+          >
+            Cancelar
+          </Button>
+          
+          <Button
+            type="submit"
+            form="command-form"
+            disabled={isProcessing}
+            className="px-4 py-2 bg-discord-blurple text-white rounded hover:bg-opacity-80"
+            animationType="bounce"
+            isLoading={isProcessing}
+          >
+            {isEditing ? 'Atualizar' : 'Criar'} Comando
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
