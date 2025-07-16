@@ -334,11 +334,12 @@ export class CommandHandler {
         const optionName = option.name.toLowerCase().replace(/\s+/g, '_');
         let optionValue = parameters[optionName] || '';
         
+        /* 
         // Handle attachment object
         if (typeof optionValue === 'object' && optionValue !== null && 'url' in optionValue) {
           // Manter o objeto JSON original com todas as chaves
           optionValue = JSON.stringify(optionValue);
-        }
+        } */
         
         // Replace the placeholder in the response
         response = response.replace(`{${optionName}}`, String(optionValue));
