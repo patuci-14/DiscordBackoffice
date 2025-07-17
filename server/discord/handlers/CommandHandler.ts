@@ -334,15 +334,24 @@ export class CommandHandler {
         const optionName = option.name.toLowerCase().replace(/\s+/g, '_');
         let optionValue = parameters[optionName] || '';
         
-        /* 
         // Handle attachment object
         if (typeof optionValue === 'object' && optionValue !== null && 'url' in optionValue) {
-          // Manter o objeto JSON original com todas as chaves
-          optionValue = JSON.stringify(optionValue);
-        } */
+          // Criar um objeto com as propriedades separadas
+          optionValue = {
+            url: optionValue.url,
+            name: optionValue.name,
+            extension: optionValue.extension ? optionValue.extension.toUpperCase() : '',
+            size: optionValue.size
+          };
+        }
         
         // Replace the placeholder in the response
-        response = response.replace(`{${optionName}}`, String(optionValue));
+        if (typeof optionValue === 'object' && optionValue !== null) {
+          // Keep object as is without converting to string
+          response = response.replace(`{${optionName}}`, optionValue);
+        } else {
+          response = response.replace(`{${optionName}}`, String(optionValue));
+        }
       });
     }
     
