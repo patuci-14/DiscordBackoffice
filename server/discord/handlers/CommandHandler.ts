@@ -96,16 +96,16 @@ export class CommandHandler {
       const parameters: Record<string, any> = {};
       if (interaction.options && interaction.options.data.length > 0) {
         interaction.options.data.forEach(option => {
-          let value = option.value;
+          let value: any = option.value;
           // Handle attachment type
           if (option.attachment) {
-            value = JSON.stringify({
+            value = {
               url: option.attachment.url,
               name: option.attachment.name,
               extension: option.attachment.name.split('.').pop() || '',
               contentType: option.attachment.contentType || 'unknown',
               size: option.attachment.size
-            });
+            };
           }
           parameters[option.name] = value;
         });
@@ -346,12 +346,12 @@ export class CommandHandler {
         }
         
         // Replace the placeholder in the response
-        if (typeof optionValue === 'object' && optionValue !== null) {
-          // Keep object as is without converting to string
-          response = response.replace(`{${optionName}}`, optionValue);
-        } else {
-          response = response.replace(`{${optionName}}`, String(optionValue));
-        }
+                  if (typeof optionValue === 'object' && optionValue !== null) {
+            // Keep object as is without converting to string
+            response = response.replace(`{${optionName}}`, JSON.stringify(optionValue));
+          } else {
+            response = response.replace(`{${optionName}}`, String(optionValue));
+          }
       });
     }
     
