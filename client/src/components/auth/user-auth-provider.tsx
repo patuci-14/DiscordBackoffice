@@ -45,8 +45,8 @@ export const UserAuthProvider: React.FC<{ children: ReactNode }> = ({ children }
       setIsCheckingAuth(true);
       
       try {
-        // Verificar se há token salvo
-        const token = sessionStorage.getItem('userToken') || localStorage.getItem('userToken');
+        // Verificar se há token salvo (apenas sessionStorage para segurança)
+        const token = sessionStorage.getItem('userToken');
         
         if (!token) {
           setIsAuthenticated(false);
@@ -72,8 +72,8 @@ export const UserAuthProvider: React.FC<{ children: ReactNode }> = ({ children }
           setUser(null);
           setLoading(false);
           // Limpar token inválido
-          localStorage.removeItem('userToken');
           sessionStorage.removeItem('userToken');
+          localStorage.removeItem('userToken'); // Limpar também do localStorage caso exista
         }
       } catch (error) {
         console.error('User auth check error:', error);
@@ -84,8 +84,8 @@ export const UserAuthProvider: React.FC<{ children: ReactNode }> = ({ children }
           setIsAuthenticated(false);
           setUser(null);
           setLoading(false);
-          localStorage.removeItem('userToken');
           sessionStorage.removeItem('userToken');
+          localStorage.removeItem('userToken'); // Limpar também do localStorage caso exista
         }
       } finally {
         setIsCheckingAuth(false);
@@ -108,8 +108,9 @@ export const UserAuthProvider: React.FC<{ children: ReactNode }> = ({ children }
       const { success, token, user: userData } = await loginUser(username, password);
       
       if (success && token && userData) {
-        // Armazenar token
-        localStorage.setItem('userToken', token);
+        // Armazenar token apenas no sessionStorage (será limpo ao fechar o navegador)
+        // Remover do localStorage se existir (para limpar tokens antigos)
+        localStorage.removeItem('userToken');
         sessionStorage.setItem('userToken', token);
         
         setIsAuthenticated(true);

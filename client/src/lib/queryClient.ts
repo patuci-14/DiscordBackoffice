@@ -7,9 +7,9 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// Função para obter o token JWT do storage
+// Função para obter o token JWT do storage (apenas sessionStorage para segurança)
 function getUserToken(): string | null {
-  return sessionStorage.getItem('userToken') || localStorage.getItem('userToken');
+  return sessionStorage.getItem('userToken');
 }
 
 export async function apiRequest(
