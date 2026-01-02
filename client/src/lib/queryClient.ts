@@ -7,6 +7,11 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Função para obter o token JWT do storage
+function getUserToken(): string | null {
+  return sessionStorage.getItem('userToken') || localStorage.getItem('userToken');
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -15,10 +20,23 @@ export async function apiRequest(
   const urlWithTimestamp = url.includes('?') 
     ? `${url}&_t=${Date.now()}` 
     : `${url}?_t=${Date.now()}`;
+  
+  const headers: Record<string, string> = {};
+  
+  // Adicionar Content-Type se houver dados
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  // Adicionar token JWT se disponível (exceto para rotas de autenticação)
+  const token = getUserToken();
+  if (token && !url.includes('/user/login') && !url.includes('/auth/login')) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
     
   const res = await fetch(urlWithTimestamp, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
     cache: "no-store",
@@ -38,8 +56,17 @@ export const getQueryFn: <T>(options: {
     const urlWithTimestamp = url.includes('?') 
       ? `${url}&_t=${Date.now()}` 
       : `${url}?_t=${Date.now()}`;
+    
+    const headers: Record<string, string> = {};
+    
+    // Adicionar token JWT se disponível (exceto para rotas de autenticação)
+    const token = getUserToken();
+    if (token && !url.includes('/user/login') && !url.includes('/auth/login')) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
       
     const res = await fetch(urlWithTimestamp, {
+      headers,
       credentials: "include",
       cache: "no-store",
     });

@@ -7,6 +7,7 @@ import PageTransition from "@/components/ui/page-transition";
 import React, { useEffect, useState } from "react";
 
 import Login from "@/pages/login";
+import UserLogin from "@/pages/user-login";
 import Dashboard from "@/pages/dashboard";
 import Config from "@/pages/config";
 import Commands from "@/pages/commands";
@@ -14,11 +15,15 @@ import Logs from "@/pages/logs";
 import NotFound from "@/pages/not-found";
 
 import { useAuth } from "@/components/auth/auth-provider";
+import { useUserAuth } from "@/components/auth/user-auth-provider";
 
 function Router() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated: isBotAuthenticated, loading: botLoading } = useAuth();
+  const { isAuthenticated: isUserAuthenticated, loading: userLoading } = useUserAuth();
   const [location] = useLocation();
   const [currentPath, setCurrentPath] = useState(location);
+  
+  const loading = userLoading || botLoading;
   
   // Atualizar o caminho atual quando a localização mudar
   useEffect(() => {
@@ -28,24 +33,34 @@ function Router() {
   // If the user is on the root path, redirect them appropriately
   useEffect(() => {
     if (!loading && location === '/') {
-      console.log('Root path: Redirecting based on auth status:', isAuthenticated);
-      if (isAuthenticated) {
-        window.location.href = '/dashboard';
-      } else {
+      if (!isUserAuthenticated) {
+        window.location.href = '/user-login';
+      } else if (!isBotAuthenticated) {
         window.location.href = '/login';
+      } else {
+        window.location.href = '/dashboard';
       }
     }
-  }, [location, isAuthenticated, loading]);
+  }, [location, isUserAuthenticated, isBotAuthenticated, loading]);
 
-  // Redirecionar para login se não estiver autenticado em rotas protegidas
+  // Redirecionar para login de usuário se não estiver autenticado
   useEffect(() => {
-    if (!loading && !isAuthenticated && 
-        currentPath !== '/login' && 
+    if (!userLoading && !isUserAuthenticated && 
+        currentPath !== '/user-login' && 
         currentPath !== '/') {
-      console.log('Protected route: Not authenticated, redirecting to login');
+      window.location.href = '/user-login';
+    }
+  }, [currentPath, isUserAuthenticated, userLoading]);
+
+  // Redirecionar para login do bot se usuário estiver autenticado mas bot não
+  useEffect(() => {
+    if (!loading && isUserAuthenticated && !isBotAuthenticated && 
+        currentPath !== '/login' && 
+        currentPath !== '/user-login' &&
+        currentPath !== '/') {
       window.location.href = '/login';
     }
-  }, [currentPath, isAuthenticated, loading]);
+  }, [currentPath, isUserAuthenticated, isBotAuthenticated, loading]);
   
   // Mostrar tela de carregamento enquanto verifica autenticação
   if (loading) {
@@ -63,14 +78,22 @@ function Router() {
   
   // Renderizar o componente apropriado com base no caminho atual
   const renderRoute = () => {
-    // Verificar se é uma rota protegida e se o usuário está autenticado
-    const isProtectedRoute = currentPath !== '/login';
+    // Verificar se é uma rota protegida
+    const isProtectedRoute = currentPath !== '/login' && currentPath !== '/user-login';
     
-    if (isProtectedRoute && !isAuthenticated) {
+    // Se não estiver autenticado como usuário, não renderizar rotas protegidas
+    if (isProtectedRoute && !isUserAuthenticated) {
+      return null; // Será redirecionado pelo useEffect
+    }
+    
+    // Se estiver autenticado como usuário mas não como bot, só permitir login do bot
+    if (isUserAuthenticated && !isBotAuthenticated && currentPath !== '/login' && currentPath !== '/user-login') {
       return null; // Será redirecionado pelo useEffect
     }
     
     switch (currentPath) {
+      case '/user-login':
+        return <UserLogin />;
       case '/login':
         return <Login />;
       case '/dashboard':
@@ -95,6 +118,7 @@ function Router() {
       {/* Manter o Switch para gerenciar as rotas */}
       <div style={{ display: 'none' }}>
         <Switch>
+          <Route path="/user-login" />
           <Route path="/login" />
           <Route path="/dashboard" />
           <Route path="/config" />
@@ -117,3 +141,4 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+

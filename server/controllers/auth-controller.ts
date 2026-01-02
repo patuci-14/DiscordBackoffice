@@ -9,7 +9,9 @@ const AUTH_COOLDOWN = 3000; // 3 segundos entre tentativas
 
 export const authenticate = async (req: Request, res: Response) => {
   try {
+    console.log('=== BOT AUTHENTICATION START ===');
     const { token } = req.body;
+    console.log('Token received:', token ? 'Yes (length: ' + token.length + ')' : 'No');
     
     if (!token) {
       return res.status(400).json({ 
@@ -75,9 +77,17 @@ export const authenticate = async (req: Request, res: Response) => {
       
       console.log('Attempting to connect with token');
       // Try to connect with the token
-      const connected = await discordBot.connect(token);
+      let connected: boolean;
+      try {
+        connected = await discordBot.connect(token);
+        console.log('Connection result:', connected);
+      } catch (connectError) {
+        console.error('Error during bot connection:', connectError);
+        throw connectError;
+      }
       
       if (!connected) {
+        console.log('Connection failed - invalid token or connection error');
         return res.status(401).json({ 
           success: false,
           error: 'Invalid bot token or connection failed' 
@@ -85,15 +95,26 @@ export const authenticate = async (req: Request, res: Response) => {
       }
       
       // Obtenha os dados do bot autenticado
+      console.log('Getting bot user...');
       const user = discordBot.getUser();
       if (!user) {
+        console.error('Failed to get bot user after login');
         return res.status(500).json({ success: false, error: 'Failed to get bot user after login' });
       }
       
-      console.log(`Bot connected successfully as ${user.username}`);
+      console.log(`Bot connected successfully as ${user.username} (ID: ${user.id})`);
       
       // Atualize ou crie o botConfig com todos os dados relevantes
-      let botConfig = await storage.getBotConfig(user.id);
+      console.log('Getting/creating bot config...');
+      let botConfig;
+      try {
+        botConfig = await storage.getBotConfig(user.id);
+        console.log('Bot config retrieved:', botConfig ? 'exists' : 'not found');
+      } catch (configError) {
+        console.error('Error getting bot config:', configError);
+        console.warn('Database may be unavailable - continuing without config');
+        botConfig = null;
+      }
       const botData = {
         botId: user.id,
         name: user.username,
@@ -102,18 +123,40 @@ export const authenticate = async (req: Request, res: Response) => {
         lastConnected: new Date(),
       };
       
-      if (botConfig) {
-        botConfig = await storage.updateBotConfig(botData.botId, botData);
-      } else {
-        botConfig = await storage.createBotConfig(botData);
+      try {
+        if (botConfig) {
+          console.log('Updating bot config...');
+          botConfig = await storage.updateBotConfig(botData.botId, botData);
+        } else {
+          console.log('Creating bot config...');
+          botConfig = await storage.createBotConfig(botData);
+        }
+        console.log('Bot config saved successfully');
+      } catch (configSaveError) {
+        console.error('Error saving bot config:', configSaveError);
+        console.warn('Database error - continuing without saving config. Bot is still connected.');
+        // Não falhar a autenticação por causa de erro no banco
+        // O bot está conectado, apenas não conseguimos salvar a config
+        botConfig = {
+          ...botData,
+          token: undefined, // Não incluir token na resposta
+        };
       }
 
-      let stats = await storage.getBotStats(botData.botId as string);
-
-      stats = await storage.updateBotStats({
-        botId: botData.botId as string,
-        lastUpdate: new Date()
-      });
+      console.log('Getting/updating bot stats...');
+      let stats;
+      try {
+        stats = await storage.getBotStats(botData.botId as string);
+        stats = await storage.updateBotStats({
+          botId: botData.botId as string,
+          lastUpdate: new Date()
+        });
+        console.log('Bot stats updated successfully');
+      } catch (statsError) {
+        console.error('Error updating bot stats:', statsError);
+        // Não falhar a autenticação por causa de stats
+        console.warn('Continuing despite stats error');
+      }
       
       // Retorne os dados do bot (exceto o token)
       return res.status(200).json({
@@ -134,12 +177,15 @@ export const authenticate = async (req: Request, res: Response) => {
       isAuthenticating = false;
     }
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('=== BOT AUTHENTICATION ERROR ===');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     // Resetar flag de autenticação em caso de erro
     isAuthenticating = false;
     res.status(500).json({ 
       success: false,
-      error: 'Internal server error during authentication' 
+      error: 'Internal server error during authentication'
     });
   }
 };
