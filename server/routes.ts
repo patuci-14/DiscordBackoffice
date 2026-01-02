@@ -42,6 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.post('/commands', requireUserAuth, commandsController.createCommand);
   apiRouter.patch('/commands/:id', requireUserAuth, commandsController.updateCommand);
   apiRouter.delete('/commands/:id', requireUserAuth, commandsController.deleteCommand);
+  apiRouter.post('/commands/reload', requireUserAuth, commandsController.reloadCommands);
   
   // Logs routes
   apiRouter.get('/logs', requireUserAuth, logsController.getLogs);

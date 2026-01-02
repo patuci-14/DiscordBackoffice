@@ -266,6 +266,34 @@ export const updateCommand = async (req: Request, res: Response) => {
   }
 };
 
+export const reloadCommands = async (req: Request, res: Response) => {
+  try {
+    if (!discordBot.isConnected()) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Bot is not connected' 
+      });
+    }
+
+    console.log('Forcing command reload via API...');
+    const response = await discordBot.reloadCommands();
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Commands reloaded successfully',
+      commandsCount: Array.isArray(response) ? response.length : undefined,
+      commands: Array.isArray(response) ? response : undefined
+    });
+  } catch (error) {
+    console.error('Reload commands error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error reloading commands',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+};
+
 export const deleteCommand = async (req: Request, res: Response) => {
   try {
     if (!discordBot.isConnected()) {

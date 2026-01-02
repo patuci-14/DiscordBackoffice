@@ -5,7 +5,7 @@ import StatsCard from '@/components/ui/stats-card';
 import BotInfoCard from '@/components/discord/bot-info-card';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getBotInfo, getBotStats } from '@/lib/discord-api';
+import { getBotInfo, getBotStats, reloadCommands } from '@/lib/discord-api';
 import { useToast } from '@/hooks/use-toast';
 import { BotConfig, BotStat, RecentActivity } from '@shared/schema';
 import dayjs from 'dayjs';
@@ -20,6 +20,7 @@ dayjs.extend(timezone);
 const Dashboard: React.FC = () => {
   const { toast } = useToast();
   const { botInfo } = useAuth();
+  const [isReloadingCommands, setIsReloadingCommands] = React.useState(false);
 
   const { data: botInfoData, isLoading: isBotInfoLoading, refetch: refetchBotInfo } = useQuery<{ success: boolean; config?: BotConfig }>({
     queryKey: ['/api/bot', botInfo?.id],
@@ -53,6 +54,35 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleReloadCommands = async () => {
+    setIsReloadingCommands(true);
+    try {
+      const result = await reloadCommands();
+      if (result.success) {
+        toast({
+          title: 'Comandos Atualizados',
+          description: result.commandsCount 
+            ? `${result.commandsCount} comando(s) atualizado(s) com sucesso! Os comandos podem levar alguns minutos para aparecer em todos os servidores.`
+            : 'Comandos atualizados com sucesso! Os comandos podem levar alguns minutos para aparecer em todos os servidores.',
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Falha ao Atualizar Comandos',
+          description: result.error || 'Não foi possível atualizar os comandos.',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao Atualizar Comandos',
+        description: error instanceof Error ? error.message : 'Ocorreu um erro inesperado.',
+      });
+    } finally {
+      setIsReloadingCommands(false);
+    }
+  };
+
   const getActivityIcon = (activity: RecentActivity) => {
     switch (activity.type) {
       case 'command':
@@ -79,15 +109,27 @@ const Dashboard: React.FC = () => {
   };
 
   const refreshButton = (
-    <Button 
-      variant="outline" 
-      onClick={handleRefresh} 
-      className="bg-discord-bg-secondary hover:bg-discord-bg-tertiary px-3 py-1 rounded-md text-sm inline-flex items-center"
-      iconLeft="fas fa-sync-alt"
-      animationType="pulse"
-    >
-      Recarregar
-    </Button>
+    <div className="flex gap-2">
+      <Button 
+        variant="outline" 
+        onClick={handleRefresh} 
+        className="bg-discord-bg-secondary hover:bg-discord-bg-tertiary px-3 py-1 rounded-md text-sm inline-flex items-center"
+        iconLeft="fas fa-sync-alt"
+        animationType="pulse"
+      >
+        Recarregar
+      </Button>
+      <Button 
+        variant="default" 
+        onClick={handleReloadCommands}
+        disabled={isReloadingCommands}
+        isLoading={isReloadingCommands}
+        className="px-3 py-1 text-sm"
+        iconLeft="fas fa-sync-alt"
+      >
+        {isReloadingCommands ? 'Atualizando...' : 'Atualizar Comandos'}
+      </Button>
+    </div>
   );
 
   return (

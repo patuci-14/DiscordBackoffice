@@ -211,6 +211,20 @@ export async function deleteCommand(id: number): Promise<{ success: boolean; mes
   }
 }
 
+export async function reloadCommands(): Promise<{ success: boolean; message?: string; commandsCount?: number; commands?: any[]; error?: string }> {
+  try {
+    const response = await apiRequest('POST', '/api/commands/reload');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Reload commands error:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An unknown error occurred'
+    };
+  }
+}
+
 // Logs API Functions
 export async function getLogs(params?: {
   server?: string;
