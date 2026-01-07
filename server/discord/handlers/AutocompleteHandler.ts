@@ -260,11 +260,17 @@ export class AutocompleteHandler {
         const requestConfig = {
           method: option.autocomplete.apiMethod || 'GET',
           url: option.autocomplete.apiUrl,
-          headers: option.autocomplete.apiHeaders || {},
+          headers: {
+            ...option.autocomplete.apiHeaders,
+            'X-Discord-User-Id': interaction.user.id,
+            'X-Discord-Guild-Id': interaction.guildId || ''
+          },
           data: option.autocomplete.apiMethod === 'POST' ? {
             ...option.autocomplete.apiBody,
             input,
             botId: this.client.user?.id,
+            userId: interaction.user.id,
+            guildId: interaction.guildId,
             previousParameters, // Add previous parameters
             currentParameter: option.name // Name of the current parameter
           } : undefined,
@@ -272,6 +278,8 @@ export class AutocompleteHandler {
             ...option.autocomplete.apiBody,
             input,
             botId: this.client.user?.id,
+            userId: interaction.user.id,
+            guildId: interaction.guildId,
             previousParameters: JSON.stringify(previousParameters), // For GET, serialize as string
             currentParameter: option.name
           } : undefined,

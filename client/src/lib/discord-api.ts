@@ -169,30 +169,84 @@ export async function getCommand(id: number): Promise<{ success: boolean; comman
   }
 }
 
-export async function createCommand(command: InsertCommand): Promise<{ success: boolean; command?: Command; error?: string; details?: any }> {
+export async function createCommand(command: InsertCommand): Promise<{ success: boolean; command?: Command; error?: string; message?: string; details?: any }> {
   try {
     const response = await apiRequest('POST', '/api/commands', command);
     const data = await response.json();
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create command error:', error);
+    
+    // Tentar extrair mensagem de erro do response se disponível
+    let errorMessage = 'Falha ao criar comando';
+    let errorDetails: any = null;
+    
+    if (error?.data) {
+      // Erro já parseado pelo throwIfResNotOk
+      errorMessage = error.data.message || error.data.error || errorMessage;
+      errorDetails = error.data.details;
+    } else if (error instanceof Error) {
+      // Tentar parsear mensagem de erro do formato "500: {...}"
+      const match = error.message.match(/\d+:\s*(\{.*\})/);
+      if (match) {
+        try {
+          const errorData = JSON.parse(match[1]);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          errorDetails = errorData.details;
+        } catch (e) {
+          errorMessage = error.message;
+        }
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'An unknown error occurred'
+      error: errorMessage,
+      message: errorMessage,
+      details: errorDetails
     };
   }
 }
 
-export async function updateCommand(id: number, update: Partial<Command>): Promise<{ success: boolean; command?: Command; error?: string }> {
+export async function updateCommand(id: number, update: Partial<Command>): Promise<{ success: boolean; command?: Command; error?: string; message?: string; details?: any }> {
   try {
     const response = await apiRequest('PATCH', `/api/commands/${id}`, update);
     const data = await response.json();
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update command error:', error);
+    
+    // Tentar extrair mensagem de erro do response se disponível
+    let errorMessage = 'Falha ao atualizar comando';
+    let errorDetails: any = null;
+    
+    if (error?.data) {
+      // Erro já parseado pelo throwIfResNotOk
+      errorMessage = error.data.message || error.data.error || errorMessage;
+      errorDetails = error.data.details;
+    } else if (error instanceof Error) {
+      // Tentar parsear mensagem de erro do formato "500: {...}"
+      const match = error.message.match(/\d+:\s*(\{.*\})/);
+      if (match) {
+        try {
+          const errorData = JSON.parse(match[1]);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          errorDetails = errorData.details;
+        } catch (e) {
+          errorMessage = error.message;
+        }
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'An unknown error occurred'
+      error: errorMessage,
+      message: errorMessage,
+      details: errorDetails
     };
   }
 }

@@ -5,10 +5,10 @@ import { InsertCommand } from '@shared/schema';
 import { z } from 'zod';
 
 const commandValidator = z.object({
-  name: z.string().min(1).max(32).transform(val => val.toLowerCase()),
+  name: z.string().min(1).max(32).transform(val => val.toLowerCase().trim()),
   type: z.enum(['text', 'slash', 'embed', 'context-menu', 'modal']),
-  response: z.string().optional(),
-  description: z.string().nullable().optional(),
+  response: z.string().default(''),
+  description: z.string().nullable().optional().transform(val => val === null || val === undefined ? null : val.trim() || null),
   webhookUrl: z.string().nullable().optional().or(z.literal('')),
   requiredPermission: z.enum(['everyone', 'moderator', 'admin', 'server-owner']),
   cooldown: z.number().int().min(0),
@@ -16,13 +16,13 @@ const commandValidator = z.object({
   deleteUserMessage: z.boolean(),
   logUsage: z.boolean(),
   active: z.boolean(),
-  requireConfirmation: z.boolean().optional(),
+  requireConfirmation: z.boolean().optional().default(false),
   confirmationMessage: z.string().nullable().optional(),
   cancelMessage: z.string().nullable().optional(),
   contextMenuType: z.enum(['message', 'user']).optional().nullable(),
   options: z.array(z.object({
-    name: z.string().transform(val => val.toLowerCase()),
-    description: z.string(),
+    name: z.string().min(1).transform(val => val.toLowerCase().trim()),
+    description: z.string().min(1),
     type: z.enum(['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL', 'ROLE', 'ATTACHMENT']),
     required: z.boolean(),
     autocomplete: z.object({
@@ -36,7 +36,7 @@ const commandValidator = z.object({
       usePreviousParameters: z.boolean().optional(),
       filterByParameters: z.array(z.string()).optional()
     }).optional()
-  })).optional(),
+  })).optional().default([]),
   webhookFailureMessage: z.string().nullable().optional(),
   modalFields: z.object({
     customId: z.string().min(1).max(100),
@@ -52,6 +52,18 @@ const commandValidator = z.object({
       value: z.string().optional()
     })).min(1).max(5)
   }).optional().nullable()
+}).refine((data) => {
+  // For slash commands, description is required
+  if (data.type === 'slash') {
+    const desc = data.description;
+    if (!desc || (typeof desc === 'string' && desc.trim().length === 0)) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: 'Descrição é obrigatória para comandos slash',
+  path: ['description']
 });
 
 export const getCommands = async (req: Request, res: Response) => {
@@ -136,15 +148,41 @@ export const createCommand = async (req: Request, res: Response) => {
       });
     }
     
+    console.log('=== CREATE COMMAND REQUEST ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     const validation = commandValidator.safeParse(req.body);
     
     if (!validation.success) {
+      console.error('Validation failed:', JSON.stringify(validation.error.format(), null, 2));
+      console.error('Validation errors:', validation.error.errors);
+      
+      // Criar mensagem de erro mais amigável
+      const errorMessages: string[] = [];
+      validation.error.errors.forEach((err) => {
+        const path = err.path.join('.');
+        if (err.code === 'invalid_type') {
+          errorMessages.push(`${path}: esperado ${err.expected}, recebido ${err.received}`);
+        } else if (err.code === 'too_small') {
+          errorMessages.push(`${path}: ${err.message}`);
+        } else if (err.code === 'too_big') {
+          errorMessages.push(`${path}: ${err.message}`);
+        } else {
+          errorMessages.push(`${path}: ${err.message}`);
+        }
+      });
+      
       return res.status(400).json({ 
         success: false,
-        error: 'Invalid command data',
+        error: 'Dados do comando inválidos',
+        message: errorMessages.length > 0 
+          ? `Erros encontrados: ${errorMessages.join('; ')}`
+          : 'Verifique os campos obrigatórios e tente novamente.',
         details: validation.error.format()
       });
     }
+    
+    console.log('Validation successful, processed data:', JSON.stringify(validation.data, null, 2));
     
     const commandData = {
       ...validation.data,
@@ -219,16 +257,43 @@ export const updateCommand = async (req: Request, res: Response) => {
       });
     }
     
+    console.log('=== UPDATE COMMAND REQUEST ===');
+    console.log('Command ID:', req.params.id);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     // Validate the update data
     const validation = commandValidator.safeParse(req.body);
     
     if (!validation.success) {
+      console.error('Validation failed:', JSON.stringify(validation.error.format(), null, 2));
+      console.error('Validation errors:', validation.error.errors);
+      
+      // Criar mensagem de erro mais amigável
+      const errorMessages: string[] = [];
+      validation.error.errors.forEach((err) => {
+        const path = err.path.join('.');
+        if (err.code === 'invalid_type') {
+          errorMessages.push(`${path}: esperado ${err.expected}, recebido ${err.received}`);
+        } else if (err.code === 'too_small') {
+          errorMessages.push(`${path}: ${err.message}`);
+        } else if (err.code === 'too_big') {
+          errorMessages.push(`${path}: ${err.message}`);
+        } else {
+          errorMessages.push(`${path}: ${err.message}`);
+        }
+      });
+      
       return res.status(400).json({ 
         success: false,
-        error: 'Invalid command data',
+        error: 'Dados do comando inválidos',
+        message: errorMessages.length > 0 
+          ? `Erros encontrados: ${errorMessages.join('; ')}`
+          : 'Verifique os campos obrigatórios e tente novamente.',
         details: validation.error.format()
       });
     }
+    
+    console.log('Validation successful, processed data:', JSON.stringify(validation.data, null, 2));
     
     const updates = {
       ...validation.data,

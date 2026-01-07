@@ -163,40 +163,60 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
   
   // Create command mutation
   const createCommandMutation = useMutation({
-    mutationFn: (newCommand: InsertCommandWithConfirmation) => createCommand(newCommand as any),
+    mutationFn: async (newCommand: InsertCommandWithConfirmation) => {
+      const result = await createCommand(newCommand as any);
+      if (!result.success) {
+        throw new Error(result.message || result.error || 'Falha ao criar comando');
+      }
+      return result;
+    },
     onSuccess: () => {
       toast({
-        title: 'Command Created',
-        description: 'New command has been created successfully.',
+        title: 'Comando Criado',
+        description: 'O comando foi criado com sucesso.',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/commands'] });
       onClose();
     },
     onError: (error: any) => {
+      console.error('Create command mutation error:', error);
+      
+      const errorMessage = error?.message || 'Falha ao criar comando. Verifique os campos obrigatórios.';
+      
       toast({
         variant: 'destructive',
-        title: 'Creation Failed',
-        description: error.message || 'Failed to create command. It may already exist.',
+        title: 'Falha ao Criar Comando',
+        description: errorMessage,
       });
     }
   });
   
   // Update command mutation
   const updateCommandMutation = useMutation({
-    mutationFn: ({ id, update }: { id: number, update: Partial<CommandWithConfirmation> }) => updateCommand(id, update as any),
+    mutationFn: async ({ id, update }: { id: number, update: Partial<CommandWithConfirmation> }) => {
+      const result = await updateCommand(id, update as any);
+      if (!result.success) {
+        throw new Error(result.message || result.error || 'Falha ao atualizar comando');
+      }
+      return result;
+    },
     onSuccess: () => {
       toast({
-        title: 'Command Updated',
-        description: 'Command has been updated successfully.',
+        title: 'Comando Atualizado',
+        description: 'O comando foi atualizado com sucesso.',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/commands'] });
       onClose();
     },
     onError: (error: any) => {
+      console.error('Update command mutation error:', error);
+      
+      const errorMessage = error?.message || 'Falha ao atualizar comando. Verifique os campos obrigatórios.';
+      
       toast({
         variant: 'destructive',
-        title: 'Update Failed',
-        description: error.message || 'Failed to update command.',
+        title: 'Falha ao Atualizar Comando',
+        description: errorMessage,
       });
     }
   });
@@ -256,27 +276,44 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, isEditing, onClose }
     }
     
     // Create the command data with type assertion to include confirmation fields
-    const commandData = {
+    // Filtrar opções vazias ou inválidas
+    const validOptions = type === 'slash' 
+      ? options.filter(opt => opt.name && opt.name.trim() && opt.description && opt.description.trim())
+      : [];
+    
+    // Preparar dados do comando, removendo campos undefined
+    const commandData: any = {
       botId,
-      name,
+      name: name.trim().toLowerCase(),
       type,
-      description,
-      response,
+      description: description.trim() || null,
+      response: response.trim() || '',
       webhookUrl: webhookUrl.trim() || null,
       requiredPermission,
-      cooldown,
-      enabledForAllServers,
-      deleteUserMessage,
-      logUsage,
-      active,
-      options: type === 'slash' && options.length > 0 ? options : [],
-      requireConfirmation,
-      confirmationMessage: requireConfirmation ? confirmationMessage : null,
-      cancelMessage: requireConfirmation ? cancelMessage : null,
-      contextMenuType: type === 'context-menu' ? contextMenuType : undefined,
-      webhookFailureMessage: webhookFailureMessage || null,
-      modalFields: type === 'modal' ? modalFields : undefined,
+      cooldown: Number(cooldown) || 0,
+      enabledForAllServers: Boolean(enabledForAllServers),
+      deleteUserMessage: Boolean(deleteUserMessage),
+      logUsage: Boolean(logUsage),
+      active: Boolean(active),
+      options: validOptions,
+      requireConfirmation: Boolean(requireConfirmation),
+      confirmationMessage: requireConfirmation ? (confirmationMessage.trim() || null) : null,
+      cancelMessage: requireConfirmation ? (cancelMessage.trim() || null) : null,
+      contextMenuType: type === 'context-menu' ? contextMenuType : null,
+      webhookFailureMessage: webhookFailureMessage.trim() || null,
+      modalFields: type === 'modal' && modalFields.customId && modalFields.title && modalFields.fields.length > 0 
+        ? modalFields 
+        : null,
     };
+    
+    // Remover campos undefined para não enviar no request
+    Object.keys(commandData).forEach(key => {
+      if (commandData[key] === undefined) {
+        delete commandData[key];
+      }
+    });
+    
+    console.log('Submitting command data:', JSON.stringify(commandData, null, 2));
     
     if (isEditing && command && 'id' in command) {
       updateCommandMutation.mutate({ id: command.id, update: commandData as any });
