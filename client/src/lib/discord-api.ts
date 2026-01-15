@@ -280,6 +280,17 @@ export async function reloadCommands(): Promise<{ success: boolean; message?: st
 }
 
 // Types for command import
+export interface SlashCommandAutocomplete {
+  enabled: boolean;
+  service?: string; // Required only when enabled is true
+  apiUrl?: string;
+  apiMethod?: 'GET' | 'POST';
+  apiHeaders?: Record<string, string>;
+  apiBody?: Record<string, any>;
+  usePreviousParameters?: boolean;
+  filterByParameters?: string[];
+}
+
 export interface SlashCommandImport {
   name: string;
   description: string;
@@ -300,16 +311,7 @@ export interface SlashCommandImport {
     description: string;
     type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE' | 'ATTACHMENT';
     required?: boolean;
-    autocomplete?: {
-      enabled: boolean;
-      service: string;
-      apiUrl?: string;
-      apiMethod?: 'GET' | 'POST';
-      apiHeaders?: Record<string, string>;
-      apiBody?: Record<string, any>;
-      usePreviousParameters?: boolean;
-      filterByParameters?: string[];
-    };
+    autocomplete?: SlashCommandAutocomplete;
   }>;
 }
 

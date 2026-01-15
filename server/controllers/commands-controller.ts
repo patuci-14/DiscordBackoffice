@@ -4,6 +4,28 @@ import discordBot from '../discord-bot';
 import { InsertCommand } from '@shared/schema';
 import { z } from 'zod';
 
+// Autocomplete validator for command creation/update - service is only required when enabled is true
+const commandAutocompleteValidator = z.object({
+  enabled: z.boolean(),
+  service: z.string().optional(),
+  apiUrl: z.string().optional(),
+  apiMethod: z.enum(['GET', 'POST']).optional(),
+  apiHeaders: z.record(z.string()).optional(),
+  apiBody: z.record(z.any()).optional(),
+  parameters: z.record(z.any()).optional(),
+  usePreviousParameters: z.boolean().optional(),
+  filterByParameters: z.array(z.string()).optional()
+}).refine((data) => {
+  // When enabled is true, service is required
+  if (data.enabled && (!data.service || data.service.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'O campo "service" é obrigatório quando autocomplete está habilitado',
+  path: ['service']
+});
+
 const commandValidator = z.object({
   name: z.string().min(1).max(32).transform(val => val.toLowerCase().trim()),
   type: z.enum(['text', 'slash', 'embed', 'context-menu', 'modal']),
@@ -25,17 +47,7 @@ const commandValidator = z.object({
     description: z.string().min(1),
     type: z.enum(['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL', 'ROLE', 'ATTACHMENT']),
     required: z.boolean(),
-    autocomplete: z.object({
-      enabled: z.boolean(),
-      service: z.string(),
-      apiUrl: z.string().optional(),
-      apiMethod: z.enum(['GET', 'POST']).optional(),
-      apiHeaders: z.record(z.string()).optional(),
-      apiBody: z.record(z.any()).optional(),
-      parameters: z.record(z.any()).optional(),
-      usePreviousParameters: z.boolean().optional(),
-      filterByParameters: z.array(z.string()).optional()
-    }).optional()
+    autocomplete: commandAutocompleteValidator.optional()
   })).optional().default([]),
   webhookFailureMessage: z.string().nullable().optional(),
   modalFields: z.object({
@@ -435,6 +447,27 @@ export const getCommandsStats = async (req: Request, res: Response) => {
   }
 };
 
+// Autocomplete validator - service is only required when enabled is true
+const autocompleteValidator = z.object({
+  enabled: z.boolean(),
+  service: z.string().optional(),
+  apiUrl: z.string().optional(),
+  apiMethod: z.enum(['GET', 'POST']).optional(),
+  apiHeaders: z.record(z.string()).optional(),
+  apiBody: z.record(z.any()).optional(),
+  usePreviousParameters: z.boolean().optional(),
+  filterByParameters: z.array(z.string()).optional()
+}).refine((data) => {
+  // When enabled is true, service is required
+  if (data.enabled && (!data.service || data.service.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'O campo "service" é obrigatório quando autocomplete está habilitado',
+  path: ['service']
+});
+
 // Validator for slash command import (simplified, without type field)
 const slashCommandImportValidator = z.object({
   name: z.string().min(1).max(32).transform(val => val.toLowerCase().trim()),
@@ -456,16 +489,7 @@ const slashCommandImportValidator = z.object({
     description: z.string().min(1),
     type: z.enum(['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL', 'ROLE', 'ATTACHMENT']),
     required: z.boolean().default(false),
-    autocomplete: z.object({
-      enabled: z.boolean(),
-      service: z.string(),
-      apiUrl: z.string().optional(),
-      apiMethod: z.enum(['GET', 'POST']).optional(),
-      apiHeaders: z.record(z.string()).optional(),
-      apiBody: z.record(z.any()).optional(),
-      usePreviousParameters: z.boolean().optional(),
-      filterByParameters: z.array(z.string()).optional()
-    }).optional()
+    autocomplete: autocompleteValidator.optional()
   })).optional().default([])
 });
 
