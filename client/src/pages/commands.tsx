@@ -89,6 +89,81 @@ const Commands: React.FC = () => {
     }
   };
 
+  // Convert command to export JSON format
+  const commandToExportJson = (command: any) => {
+    const exportData: any = {
+      name: command.name,
+      description: command.description || '',
+      response: command.response,
+    };
+
+    if (command.webhookUrl) exportData.webhookUrl = command.webhookUrl;
+    if (command.webhookFailureMessage) exportData.webhookFailureMessage = command.webhookFailureMessage;
+    if (command.requiredPermission && command.requiredPermission !== 'everyone') {
+      exportData.requiredPermission = command.requiredPermission;
+    }
+    if (command.cooldown && command.cooldown > 0) exportData.cooldown = command.cooldown;
+    if (command.enabledForAllServers === false) exportData.enabledForAllServers = false;
+    if (command.deleteUserMessage === true) exportData.deleteUserMessage = true;
+    if (command.logUsage === false) exportData.logUsage = false;
+    if (command.active === false) exportData.active = false;
+    if (command.requireConfirmation === true) {
+      exportData.requireConfirmation = true;
+      if (command.confirmationMessage) exportData.confirmationMessage = command.confirmationMessage;
+      if (command.cancelMessage) exportData.cancelMessage = command.cancelMessage;
+    }
+    
+    if (command.options && Array.isArray(command.options) && command.options.length > 0) {
+      exportData.options = command.options;
+    }
+
+    return exportData;
+  };
+
+  // Export all commands as JSON file
+  const handleExportAll = () => {
+    try {
+      const commands = data?.commands || [];
+      
+      if (commands.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Nenhum comando',
+          description: 'Não há comandos para exportar',
+        });
+        return;
+      }
+
+      const exportData = {
+        commands: commands.map(commandToExportJson)
+      };
+
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.download = `commands-export-${timestamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: 'Export concluído',
+        description: `${commands.length} comando(s) exportado(s) com sucesso`,
+      });
+    } catch (error) {
+      console.error('Export all error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao exportar',
+        description: 'Não foi possível exportar os comandos',
+      });
+    }
+  };
+
   const defaultCommand: InsertCommand = {
     botId: botInfo?.id || '',
     name: '',
@@ -122,6 +197,16 @@ const Commands: React.FC = () => {
         animationType="scale"
       >
         Importar JSON
+      </Button>
+      
+      <Button
+        onClick={handleExportAll}
+        disabled={!data?.commands || data.commands.length === 0}
+        className="bg-discord-bg-tertiary hover:bg-opacity-80 px-3 py-2 rounded-md text-white text-sm flex items-center disabled:opacity-50"
+        iconLeft="fas fa-file-export"
+        animationType="scale"
+      >
+        Exportar Todos
       </Button>
       
       <Button
