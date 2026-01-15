@@ -279,6 +279,114 @@ export async function reloadCommands(): Promise<{ success: boolean; message?: st
   }
 }
 
+// Types for command import
+export interface SlashCommandImport {
+  name: string;
+  description: string;
+  response: string;
+  webhookUrl?: string | null;
+  webhookFailureMessage?: string | null;
+  requiredPermission?: 'everyone' | 'moderator' | 'admin' | 'server-owner';
+  cooldown?: number;
+  enabledForAllServers?: boolean;
+  deleteUserMessage?: boolean;
+  logUsage?: boolean;
+  active?: boolean;
+  requireConfirmation?: boolean;
+  confirmationMessage?: string | null;
+  cancelMessage?: string | null;
+  options?: Array<{
+    name: string;
+    description: string;
+    type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'USER' | 'CHANNEL' | 'ROLE' | 'ATTACHMENT';
+    required?: boolean;
+    autocomplete?: {
+      enabled: boolean;
+      service: string;
+      apiUrl?: string;
+      apiMethod?: 'GET' | 'POST';
+      apiHeaders?: Record<string, string>;
+      apiBody?: Record<string, any>;
+      usePreviousParameters?: boolean;
+      filterByParameters?: string[];
+    };
+  }>;
+}
+
+export interface ImportCommandsOptions {
+  skipDuplicates?: boolean;
+  updateExisting?: boolean;
+}
+
+export interface ImportResult {
+  success: boolean;
+  name: string;
+  error?: string;
+  action?: 'created' | 'updated' | 'skipped';
+}
+
+export interface ImportCommandsResponse {
+  success: boolean;
+  message: string;
+  summary: {
+    total: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: number;
+  };
+  results: ImportResult[];
+  error?: string;
+  details?: any;
+}
+
+export async function importCommands(
+  commands: SlashCommandImport[],
+  options: ImportCommandsOptions = {}
+): Promise<ImportCommandsResponse> {
+  try {
+    const response = await apiRequest('POST', '/api/commands/import', {
+      commands,
+      skipDuplicates: options.skipDuplicates ?? true,
+      updateExisting: options.updateExisting ?? false
+    });
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    console.error('Import commands error:', error);
+    
+    let errorMessage = 'Falha ao importar comandos';
+    let errorDetails: any = null;
+    
+    if (error?.data) {
+      errorMessage = error.data.message || error.data.error || errorMessage;
+      errorDetails = error.data.details;
+    } else if (error instanceof Error) {
+      const match = error.message.match(/\d+:\s*(\{.*\})/);
+      if (match) {
+        try {
+          const errorData = JSON.parse(match[1]);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          errorDetails = errorData.details;
+        } catch (e) {
+          errorMessage = error.message;
+        }
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
+    return { 
+      success: false, 
+      message: errorMessage,
+      error: errorMessage,
+      details: errorDetails,
+      summary: { total: 0, created: 0, updated: 0, skipped: 0, errors: 0 },
+      results: []
+    };
+  }
+}
+
 // Logs API Functions
 export async function getLogs(params?: {
   server?: string;

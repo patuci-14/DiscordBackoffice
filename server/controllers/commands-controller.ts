@@ -434,3 +434,188 @@ export const getCommandsStats = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
+
+// Validator for slash command import (simplified, without type field)
+const slashCommandImportValidator = z.object({
+  name: z.string().min(1).max(32).transform(val => val.toLowerCase().trim()),
+  description: z.string().min(1).max(100),
+  response: z.string().default(''),
+  webhookUrl: z.string().nullable().optional().or(z.literal('')),
+  webhookFailureMessage: z.string().nullable().optional(),
+  requiredPermission: z.enum(['everyone', 'moderator', 'admin', 'server-owner']).default('everyone'),
+  cooldown: z.number().int().min(0).default(0),
+  enabledForAllServers: z.boolean().default(true),
+  deleteUserMessage: z.boolean().default(false),
+  logUsage: z.boolean().default(true),
+  active: z.boolean().default(true),
+  requireConfirmation: z.boolean().default(false),
+  confirmationMessage: z.string().nullable().optional(),
+  cancelMessage: z.string().nullable().optional(),
+  options: z.array(z.object({
+    name: z.string().min(1).transform(val => val.toLowerCase().trim()),
+    description: z.string().min(1),
+    type: z.enum(['STRING', 'INTEGER', 'BOOLEAN', 'USER', 'CHANNEL', 'ROLE', 'ATTACHMENT']),
+    required: z.boolean().default(false),
+    autocomplete: z.object({
+      enabled: z.boolean(),
+      service: z.string(),
+      apiUrl: z.string().optional(),
+      apiMethod: z.enum(['GET', 'POST']).optional(),
+      apiHeaders: z.record(z.string()).optional(),
+      apiBody: z.record(z.any()).optional(),
+      usePreviousParameters: z.boolean().optional(),
+      filterByParameters: z.array(z.string()).optional()
+    }).optional()
+  })).optional().default([])
+});
+
+const importRequestValidator = z.object({
+  commands: z.array(slashCommandImportValidator).min(1),
+  skipDuplicates: z.boolean().default(true),
+  updateExisting: z.boolean().default(false)
+});
+
+interface ImportResult {
+  success: boolean;
+  name: string;
+  error?: string;
+  action?: 'created' | 'updated' | 'skipped';
+}
+
+export const importCommands = async (req: Request, res: Response) => {
+  try {
+    if (!discordBot.isConnected()) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Bot is not connected' 
+      });
+    }
+
+    console.log('=== IMPORT COMMANDS REQUEST ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+
+    // Validate the import request
+    const validation = importRequestValidator.safeParse(req.body);
+
+    if (!validation.success) {
+      console.error('Import validation failed:', JSON.stringify(validation.error.format(), null, 2));
+      
+      const errorMessages: string[] = [];
+      validation.error.errors.forEach((err) => {
+        const path = err.path.join('.');
+        errorMessages.push(`${path}: ${err.message}`);
+      });
+
+      return res.status(400).json({
+        success: false,
+        error: 'Dados de importação inválidos',
+        message: errorMessages.join('; '),
+        details: validation.error.format()
+      });
+    }
+
+    const { commands, skipDuplicates, updateExisting } = validation.data;
+    const botId = discordBot.getUser()?.id || "unknown";
+    const results: ImportResult[] = [];
+    let createdCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+
+    // Process each command
+    for (const commandData of commands) {
+      try {
+        const commandName = commandData.name.toLowerCase();
+        
+        // Check if command already exists
+        const existingCommand = await storage.getCommandByName(botId, commandName);
+
+        if (existingCommand) {
+          if (updateExisting) {
+            // Update existing command
+            const updateData = {
+              ...commandData,
+              type: 'slash' as const,
+              botId,
+              name: commandName
+            };
+            
+            await storage.updateCommand(existingCommand.id, updateData);
+            results.push({ success: true, name: commandName, action: 'updated' });
+            updatedCount++;
+          } else if (skipDuplicates) {
+            // Skip duplicate
+            results.push({ success: true, name: commandName, action: 'skipped' });
+            skippedCount++;
+          } else {
+            // Error: duplicate found
+            results.push({ 
+              success: false, 
+              name: commandName, 
+              error: 'Comando com este nome já existe' 
+            });
+            errorCount++;
+          }
+        } else {
+          // Create new command
+          const newCommandData = {
+            ...commandData,
+            type: 'slash' as const,
+            botId,
+            name: commandName
+          };
+
+          const newCommand = await storage.createCommand(newCommandData);
+          
+          if (newCommand) {
+            results.push({ success: true, name: commandName, action: 'created' });
+            createdCount++;
+          } else {
+            results.push({ 
+              success: false, 
+              name: commandName, 
+              error: 'Falha ao criar comando' 
+            });
+            errorCount++;
+          }
+        }
+      } catch (cmdError) {
+        console.error(`Error processing command ${commandData.name}:`, cmdError);
+        results.push({ 
+          success: false, 
+          name: commandData.name, 
+          error: cmdError instanceof Error ? cmdError.message : 'Erro desconhecido' 
+        });
+        errorCount++;
+      }
+    }
+
+    // Reload bot commands if any were created or updated
+    if (createdCount > 0 || updatedCount > 0) {
+      await discordBot.reloadCommands();
+    }
+
+    const overallSuccess = errorCount === 0;
+
+    return res.status(overallSuccess ? 200 : 207).json({
+      success: overallSuccess,
+      message: `Importação concluída: ${createdCount} criado(s), ${updatedCount} atualizado(s), ${skippedCount} ignorado(s), ${errorCount} erro(s)`,
+      summary: {
+        total: commands.length,
+        created: createdCount,
+        updated: updatedCount,
+        skipped: skippedCount,
+        errors: errorCount
+      },
+      results
+    });
+
+  } catch (error) {
+    console.error('Import commands error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error importing commands',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+};

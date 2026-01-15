@@ -40,6 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.get('/commands', requireUserAuth, commandsController.getCommands);
   apiRouter.get('/commands/:id', requireUserAuth, commandsController.getCommand);
   apiRouter.post('/commands', requireUserAuth, commandsController.createCommand);
+  apiRouter.post('/commands/import', requireUserAuth, commandsController.importCommands);
   apiRouter.patch('/commands/:id', requireUserAuth, commandsController.updateCommand);
   apiRouter.delete('/commands/:id', requireUserAuth, commandsController.deleteCommand);
   apiRouter.post('/commands/reload', requireUserAuth, commandsController.reloadCommands);

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import AppShell from '@/components/layout/app-shell';
 import CommandList from '@/components/commands/command-list';
 import CommandForm from '@/components/commands/command-form';
+import CommandImport from '@/components/commands/command-import';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getCommands } from '@/lib/discord-api';
@@ -13,6 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const Commands: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [editingCommand, setEditingCommand] = useState<number | null>(null);
   const { botInfo, checkStatus } = useAuth();
   const { toast } = useToast();
@@ -113,6 +116,15 @@ const Commands: React.FC = () => {
       </Button>
       
       <Button
+        onClick={() => setShowImportDialog(true)}
+        className="bg-discord-bg-tertiary hover:bg-opacity-80 px-3 py-2 rounded-md text-white text-sm flex items-center"
+        iconLeft="fas fa-file-import"
+        animationType="scale"
+      >
+        Importar JSON
+      </Button>
+      
+      <Button
         onClick={handleCreateCommand}
         className="bg-discord-blurple hover:bg-opacity-80 px-4 py-2 rounded-md text-white text-sm flex items-center"
         iconLeft="fas fa-plus"
@@ -173,6 +185,27 @@ const Commands: React.FC = () => {
               isEditing={editingCommand !== null}
               onClose={handleFormClose}
             />
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Import Commands Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent 
+          className="bg-discord-bg-secondary border border-gray-700 max-w-3xl w-[95vw] md:w-[90vw] max-h-[85vh] md:max-h-[80vh] p-4 overflow-hidden"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl font-bold">
+              Importar Comandos Slash via JSON
+            </DialogTitle>
+            <DialogDescription className="text-discord-text-secondary">
+              Cole ou faça upload de um arquivo JSON com os comandos slash que deseja importar.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="overflow-y-auto pr-2 max-h-[calc(85vh-150px)] md:max-h-[calc(80vh-150px)] discord-scrollbar">
+            <CommandImport onClose={() => setShowImportDialog(false)} />
           </div>
         </DialogContent>
       </Dialog>
