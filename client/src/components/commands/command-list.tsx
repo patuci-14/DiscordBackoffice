@@ -5,6 +5,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Command } from '@shared/schema';
 import { PaginationPageSize } from '@/components/ui/pagination';
+import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CommandListProps {
   commands: Command[];
@@ -17,6 +24,86 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
   const [typeFilter, setTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(5);
+  const { toast } = useToast();
+
+  // Convert command to export JSON format
+  const commandToExportJson = (command: Command) => {
+    const exportData: any = {
+      name: command.name,
+      description: command.description || '',
+      response: command.response,
+    };
+
+    // Add optional fields only if they have values
+    if (command.webhookUrl) exportData.webhookUrl = command.webhookUrl;
+    if (command.webhookFailureMessage) exportData.webhookFailureMessage = command.webhookFailureMessage;
+    if (command.requiredPermission && command.requiredPermission !== 'everyone') {
+      exportData.requiredPermission = command.requiredPermission;
+    }
+    if (command.cooldown && command.cooldown > 0) exportData.cooldown = command.cooldown;
+    if (command.enabledForAllServers === false) exportData.enabledForAllServers = false;
+    if (command.deleteUserMessage === true) exportData.deleteUserMessage = true;
+    if (command.logUsage === false) exportData.logUsage = false;
+    if (command.active === false) exportData.active = false;
+    if (command.requireConfirmation === true) {
+      exportData.requireConfirmation = true;
+      if (command.confirmationMessage) exportData.confirmationMessage = command.confirmationMessage;
+      if (command.cancelMessage) exportData.cancelMessage = command.cancelMessage;
+    }
+    
+    // Add options if present
+    if (command.options && Array.isArray(command.options) && command.options.length > 0) {
+      exportData.options = command.options;
+    }
+
+    return { commands: [exportData] };
+  };
+
+  // Copy command JSON to clipboard
+  const handleCopyJson = async (command: Command) => {
+    try {
+      const exportData = commandToExportJson(command);
+      const jsonString = JSON.stringify(exportData, null, 2);
+      await navigator.clipboard.writeText(jsonString);
+      toast({
+        title: 'JSON Copiado',
+        description: `Comando "${command.name}" copiado para a área de transferência`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao copiar',
+        description: 'Não foi possível copiar o JSON para a área de transferência',
+      });
+    }
+  };
+
+  // Download command as JSON file
+  const handleDownloadJson = (command: Command) => {
+    try {
+      const exportData = commandToExportJson(command);
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `command-${command.name}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({
+        title: 'Download iniciado',
+        description: `Arquivo command-${command.name}.json baixado`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao baixar',
+        description: 'Não foi possível baixar o arquivo JSON',
+      });
+    }
+  };
   
   // Filter commands based on search term and type
   const filteredCommands = commands.filter(command => {
@@ -191,14 +278,44 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-center">
-                      <Button
-                        variant="ghost"
-                        onClick={() => onEdit(command.id)}
-                        className="text-discord-text-secondary hover:text-white mx-1"
-                        animationType="scale"
-                        iconLeft="fas fa-edit"
-                      >
-                      </Button>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          onClick={() => onEdit(command.id)}
+                          className="text-discord-text-secondary hover:text-white"
+                          animationType="scale"
+                          iconLeft="fas fa-edit"
+                          title="Editar comando"
+                        />
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="text-discord-text-secondary hover:text-white"
+                              animationType="scale"
+                              iconLeft="fas fa-download"
+                              title="Exportar JSON"
+                            />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-discord-bg-tertiary border-gray-700">
+                            <DropdownMenuItem 
+                              onClick={() => handleCopyJson(command)}
+                              className="cursor-pointer hover:bg-discord-bg-secondary"
+                            >
+                              <i className="fas fa-copy mr-2"></i>
+                              Copiar JSON
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDownloadJson(command)}
+                              className="cursor-pointer hover:bg-discord-bg-secondary"
+                            >
+                              <i className="fas fa-file-download mr-2"></i>
+                              Baixar arquivo .json
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </td>
                   </tr>
                 ))
