@@ -64,12 +64,35 @@ const CommandList: React.FC<CommandListProps> = ({ commands, isLoading, onEdit }
     try {
       const exportData = commandToExportJson(command);
       const jsonString = JSON.stringify(exportData, null, 2);
-      await navigator.clipboard.writeText(jsonString);
+      
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(jsonString);
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = jsonString;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (!successful) {
+          throw new Error('Fallback copy failed');
+        }
+      }
+      
       toast({
         title: 'JSON Copiado',
         description: `Comando "${command.name}" copiado para a área de transferência`,
       });
     } catch (error) {
+      console.error('Copy to clipboard error:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao copiar',
